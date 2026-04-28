@@ -37,12 +37,13 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 
 const worldGroup = new THREE.Group();
 scene.add(worldGroup);
 
-const clock = new THREE.Clock();
+const timer = new THREE.Timer();
+timer.connect(document);
 const keys = {};
 const walls = [];
 const wallMeshes = [];
@@ -647,9 +648,10 @@ function onPointerLockChange() {
   }
 }
 
-function animate() {
+function animate(timestamp) {
   requestAnimationFrame(animate);
-  const delta = Math.min(clock.getDelta(), 0.05);
+  timer.update(timestamp);
+  const delta = Math.min(timer.getDelta(), 0.05);
   update(delta);
 }
 
