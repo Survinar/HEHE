@@ -1,23 +1,26 @@
-# HEHE
+# HEHE | Entity Run
 
-Static browser game site ready for GitHub Pages.
+A high-performance Three.js survival horror prototype.
 
-## Local files
+[**→ Play the Live Demo**](https://survinar.github.io/HEHE/)
 
-- `index.html`
-- `styles.css`
-- `game.js`
-- `entity1.png`
-- `entity1.mp3`
+## Experience
+Navigate a claustrophobic maze while being hunted by an unknown entity. Use movement mechanics like **sliding** and **sprinting** to maintain distance and reach the portal before it's too late.
 
-## Publish on GitHub Pages
+### Controls
+- **WASD**: Move
+- **Shift**: Sprint
+- **Ctrl**: Slide (while sprinting)
+- **Space**: Jump
+- **Esc**: Pause / Menu
 
-1. Create a GitHub repository named `HEHE`.
-2. Add it as this repo's remote:
-   `git remote add origin git@github.com:<your-user>/HEHE.git`
-3. Push the `main` branch:
-   `git push -u origin main`
-4. In GitHub, go to `Settings -> Pages` and confirm the source is `GitHub Actions`.
+## Technical Details
+- **Engine**: Three.js (WebGL)
+- **Physics**: Custom velocity-based movement with AABB collision resolution.
+- **Lighting**: Real-time PointLight tracking and Hemisphere ambient setup.
+- **Deployment**: Automatic via GitHub Actions to GitHub Pages.
 
-The included workflow deploys the repository root as a static site on every push to `main`.
+---
+*Created as part of the HEHE Project.*
+
 
