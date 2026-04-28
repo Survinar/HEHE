@@ -32,8 +32,12 @@ const camera = new THREE.PerspectiveCamera(
   300
 );
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const renderer = new THREE.WebGLRenderer({
+  canvas,
+  antialias: true,
+  powerPreference: "high-performance",
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.shadowMap.enabled = true;
@@ -41,6 +45,10 @@ renderer.shadowMap.type = THREE.PCFShadowMap;
 
 const worldGroup = new THREE.Group();
 scene.add(worldGroup);
+const worldLighting = {
+  moonLight: null,
+  moonTarget: null,
+};
 
 const timer = new THREE.Timer();
 timer.connect(document);
@@ -108,14 +116,21 @@ function createWorld() {
   const moonLight = new THREE.DirectionalLight(0xa4d5ff, 1.2);
   moonLight.position.set(18, 28, 12);
   moonLight.castShadow = true;
-  moonLight.shadow.mapSize.set(2048, 2048);
+  moonLight.shadow.mapSize.set(1024, 1024);
   moonLight.shadow.camera.near = 0.1;
-  moonLight.shadow.camera.far = 260;
-  moonLight.shadow.camera.left = -170;
-  moonLight.shadow.camera.right = 170;
-  moonLight.shadow.camera.top = 170;
-  moonLight.shadow.camera.bottom = -170;
+  moonLight.shadow.camera.far = 120;
+  moonLight.shadow.camera.left = -55;
+  moonLight.shadow.camera.right = 55;
+  moonLight.shadow.camera.top = 55;
+  moonLight.shadow.camera.bottom = -55;
+  moonLight.shadow.bias = -0.00015;
   scene.add(moonLight);
+  const moonTarget = new THREE.Object3D();
+  moonTarget.position.set(0, 0, 0);
+  scene.add(moonTarget);
+  moonLight.target = moonTarget;
+  worldLighting.moonLight = moonLight;
+  worldLighting.moonTarget = moonTarget;
 
   const roadTexture = makeRoadTexture();
   roadTexture.wrapS = THREE.RepeatWrapping;
@@ -184,8 +199,6 @@ function createWorld() {
       sidewalkMaterial
     );
     sidewalk.position.set(x, y, z);
-    sidewalk.castShadow = true;
-    sidewalk.receiveShadow = true;
     worldGroup.add(sidewalk);
   });
 
@@ -201,8 +214,6 @@ function createWorld() {
       decorativeEdgeMaterial
     );
     border.position.set(x, y, z);
-    border.castShadow = true;
-    border.receiveShadow = true;
     worldGroup.add(border);
   });
 
@@ -257,8 +268,6 @@ function createWorld() {
       })
     );
     roof.position.set(x, h + 0.4, z);
-    roof.castShadow = true;
-    roof.receiveShadow = true;
     worldGroup.add(roof);
   });
 
@@ -305,13 +314,20 @@ function createWorld() {
   lampPositions.forEach(([x, y, z]) => {
     const pole = new THREE.Mesh(lightPoleGeometry, lightPoleMaterial);
     pole.position.set(x, y + 4, z);
-    pole.castShadow = true;
-    pole.receiveShadow = true;
     worldGroup.add(pole);
 
-    const lampGlow = new THREE.PointLight(0xffdf9a, 10, 22, 2);
-    lampGlow.position.set(x, 7.5, z);
-    worldGroup.add(lampGlow);
+    const lampBulb = new THREE.Mesh(
+      new THREE.SphereGeometry(0.45, 8, 8),
+      new THREE.MeshBasicMaterial({ color: 0xffdf9a })
+    );
+    lampBulb.position.set(x, 7.5, z);
+    worldGroup.add(lampBulb);
+
+    if (Math.abs(x) < 80 || Math.abs(z) < 80) {
+      const lampGlow = new THREE.PointLight(0xffdf9a, 3.2, 14, 2);
+      lampGlow.position.set(x, 7.5, z);
+      worldGroup.add(lampGlow);
+    }
   });
 
   const exitRing = new THREE.Mesh(
@@ -389,8 +405,8 @@ function makeRoadTexture() {
 function addWall(x, y, z, width, depth, material, height = 6) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
   mesh.position.set(x, y, z);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
+  mesh.castShadow = height > 3;
+  mesh.receiveShadow = false;
   worldGroup.add(mesh);
   wallMeshes.push(mesh);
   walls.push({
@@ -525,8 +541,23 @@ function update(delta) {
   game.survivedSeconds += delta;
   updatePlayer(delta);
   updateChaser(delta);
+  updateShadowFocus();
   updateHud(chase.position.distanceTo(player.position));
   renderer.render(scene, camera);
+}
+
+function updateShadowFocus() {
+  if (!worldLighting.moonLight || !worldLighting.moonTarget) {
+    return;
+  }
+
+  worldLighting.moonTarget.position.set(player.position.x, 0, player.position.z);
+  worldLighting.moonLight.position.set(
+    player.position.x + 18,
+    28,
+    player.position.z + 12
+  );
+  worldLighting.moonLight.target.updateMatrixWorld();
 }
 
 function applyPlanarFriction(amount, delta) {
