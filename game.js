@@ -51,8 +51,8 @@ const inputState = {
 };
 const walls = [];
 const wallMeshes = [];
-const spawnPoint = new THREE.Vector3(0, 0, 12);
-const exitPoint = new THREE.Vector3(0, 0, -64);
+const spawnPoint = new THREE.Vector3(0, 0, 62);
+const exitPoint = new THREE.Vector3(0, 0, -66);
 
 const player = {
   position: new THREE.Vector3(),
@@ -116,82 +116,153 @@ function createWorld() {
   moonLight.shadow.camera.bottom = -70;
   scene.add(moonLight);
 
-  const floorTexture = makeFloorTexture();
-  floorTexture.wrapS = THREE.RepeatWrapping;
-  floorTexture.wrapT = THREE.RepeatWrapping;
-  floorTexture.repeat.set(28, 28);
+  const roadTexture = makeRoadTexture();
+  roadTexture.wrapS = THREE.RepeatWrapping;
+  roadTexture.wrapT = THREE.RepeatWrapping;
+  roadTexture.repeat.set(10, 10);
 
-  const floor = new THREE.Mesh(
+  const cityGround = new THREE.Mesh(
     new THREE.PlaneGeometry(160, 160),
     new THREE.MeshStandardMaterial({
-      color: 0x132330,
+      color: 0x10171f,
       roughness: 0.96,
-      metalness: 0.04,
-      map: floorTexture,
+      metalness: 0.03,
+      map: roadTexture,
     })
   );
-  floor.rotation.x = -Math.PI / 2;
-  floor.receiveShadow = true;
-  worldGroup.add(floor);
+  cityGround.rotation.x = -Math.PI / 2;
+  cityGround.receiveShadow = true;
+  worldGroup.add(cityGround);
 
-  const perimeterMaterial = new THREE.MeshStandardMaterial({
-    color: 0x1a3547,
-    roughness: 0.86,
+  const sidewalkMaterial = new THREE.MeshStandardMaterial({
+    color: 0x4c5c68,
+    roughness: 0.98,
+    metalness: 0.02,
+  });
+  const lotMaterialA = new THREE.MeshStandardMaterial({
+    color: 0x324758,
+    roughness: 0.84,
     metalness: 0.08,
   });
-
-  addWall(0, 3, -78, 78, 6, perimeterMaterial);
-  addWall(0, 3, 78, 78, 6, perimeterMaterial);
-  addWall(-78, 3, 0, 6, 156, perimeterMaterial);
-  addWall(78, 3, 0, 6, 156, perimeterMaterial);
-
-  const mazeMaterial = new THREE.MeshStandardMaterial({
-    color: 0x24465b,
+  const lotMaterialB = new THREE.MeshStandardMaterial({
+    color: 0x5c3d48,
     roughness: 0.82,
-    metalness: 0.1,
+    metalness: 0.06,
+  });
+  const lotMaterialC = new THREE.MeshStandardMaterial({
+    color: 0x455b45,
+    roughness: 0.86,
+    metalness: 0.07,
+  });
+  const perimeterMaterial = new THREE.MeshStandardMaterial({
+    color: 0x1a2a36,
+    roughness: 0.92,
+    metalness: 0.04,
   });
 
-  const layout = [
-    [0, 3, 38, 54, 6],
-    [-32, 3, 18, 6, 50],
-    [26, 3, 4, 6, 44],
-    [0, 3, -10, 40, 6],
-    [-24, 3, -28, 44, 6],
-    [30, 3, -36, 6, 48],
-    [4, 3, -54, 34, 6],
-    [-42, 3, -52, 6, 32],
-    [46, 3, -58, 22, 6],
+  const sidewalks = [
+    [0, 0.6, -78, 160, 4, 1.2],
+    [0, 0.6, 78, 160, 4, 1.2],
+    [-78, 0.6, 0, 4, 160, 1.2],
+    [78, 0.6, 0, 4, 160, 1.2],
+    [0, 0.45, 40, 160, 3, 0.9],
+    [0, 0.45, 0, 160, 3, 0.9],
+    [0, 0.45, -40, 160, 3, 0.9],
+    [-40, 0.45, 0, 3, 160, 0.9],
+    [40, 0.45, 0, 3, 160, 0.9],
   ];
-
-  layout.forEach(([x, y, z, sx, sz]) => addWall(x, y, z, sx, sz, mazeMaterial));
-
-  const pillarGeometry = new THREE.CylinderGeometry(1.5, 1.5, 6, 16);
-  const pillarMaterial = new THREE.MeshStandardMaterial({
-    color: 0x2b566f,
-    roughness: 0.78,
-    metalness: 0.12,
+  sidewalks.forEach(([x, y, z, sx, sz, h]) => {
+    const sidewalk = new THREE.Mesh(
+      new THREE.BoxGeometry(sx, h, sz),
+      sidewalkMaterial
+    );
+    sidewalk.position.set(x, y, z);
+    sidewalk.castShadow = true;
+    sidewalk.receiveShadow = true;
+    worldGroup.add(sidewalk);
   });
-  const pillarPositions = [
-    [-50, 0, 50],
-    [50, 0, 50],
-    [-54, 0, -12],
-    [56, 0, 14],
-    [-8, 0, -42],
-    [12, 0, -26],
+
+  addWall(0, 6, -82, 164, 4, perimeterMaterial, 12);
+  addWall(0, 6, 82, 164, 4, perimeterMaterial, 12);
+  addWall(-82, 6, 0, 4, 164, perimeterMaterial, 12);
+  addWall(82, 6, 0, 4, 164, perimeterMaterial, 12);
+
+  const cityBlocks = [
+    [-58, 0, 58, 28, 26, 22, lotMaterialA],
+    [-18, 0, 58, 30, 26, 16, lotMaterialB],
+    [24, 0, 58, 22, 26, 20, lotMaterialC],
+    [58, 0, 58, 24, 26, 26, lotMaterialA],
+    [-58, 0, 18, 24, 22, 18, lotMaterialB],
+    [-18, 0, 18, 28, 22, 24, lotMaterialC],
+    [24, 0, 18, 22, 22, 17, lotMaterialA],
+    [58, 0, 18, 24, 22, 21, lotMaterialB],
+    [-58, 0, -20, 26, 20, 24, lotMaterialC],
+    [-18, 0, -20, 28, 20, 19, lotMaterialA],
+    [24, 0, -20, 20, 20, 27, lotMaterialB],
+    [58, 0, -20, 26, 20, 18, lotMaterialC],
+    [-58, 0, -58, 28, 26, 16, lotMaterialA],
+    [-18, 0, -58, 28, 26, 25, lotMaterialB],
+    [24, 0, -58, 20, 26, 19, lotMaterialC],
   ];
 
-  pillarPositions.forEach(([x, y, z]) => {
-    const pillar = new THREE.Mesh(pillarGeometry, pillarMaterial);
-    pillar.position.set(x, y + 3, z);
-    pillar.castShadow = true;
-    pillar.receiveShadow = true;
-    worldGroup.add(pillar);
-    walls.push({
-      minX: x - 2.2,
-      maxX: x + 2.2,
-      minZ: z - 2.2,
-      maxZ: z + 2.2,
-    });
+  cityBlocks.forEach(([x, y, z, sx, sz, h, material]) => {
+    addWall(x, y + h / 2, z, sx, sz, material, h);
+
+    const roof = new THREE.Mesh(
+      new THREE.BoxGeometry(sx * 0.74, 0.8, sz * 0.74),
+      new THREE.MeshStandardMaterial({
+        color: 0x91a8bb,
+        roughness: 0.72,
+        metalness: 0.14,
+      })
+    );
+    roof.position.set(x, h + 0.4, z);
+    roof.castShadow = true;
+    roof.receiveShadow = true;
+    worldGroup.add(roof);
+  });
+
+  const barrierMaterial = new THREE.MeshStandardMaterial({
+    color: 0xd77d4a,
+    roughness: 0.72,
+    metalness: 0.08,
+  });
+  const barriers = [
+    [0, 1.2, 28, 8, 2.5, 2.4],
+    [42, 1.2, -1, 2.5, 8, 2.4],
+    [-42, 1.2, -38, 2.5, 8, 2.4],
+  ];
+  barriers.forEach(([x, y, z, sx, sz, h]) => addWall(x, y, z, sx, sz, barrierMaterial, h));
+
+  const lightPoleGeometry = new THREE.CylinderGeometry(0.28, 0.34, 8, 10);
+  const lightPoleMaterial = new THREE.MeshStandardMaterial({
+    color: 0x8799a8,
+    roughness: 0.55,
+    metalness: 0.48,
+  });
+  const lampPositions = [
+    [-40, 0, 68],
+    [40, 0, 68],
+    [-68, 0, 40],
+    [68, 0, 40],
+    [-40, 0, 0],
+    [40, 0, 0],
+    [-68, 0, -40],
+    [68, 0, -40],
+    [-40, 0, -68],
+    [40, 0, -68],
+  ];
+
+  lampPositions.forEach(([x, y, z]) => {
+    const pole = new THREE.Mesh(lightPoleGeometry, lightPoleMaterial);
+    pole.position.set(x, y + 4, z);
+    pole.castShadow = true;
+    pole.receiveShadow = true;
+    worldGroup.add(pole);
+
+    const lampGlow = new THREE.PointLight(0xffdf9a, 10, 22, 2);
+    lampGlow.position.set(x, 7.5, z);
+    worldGroup.add(lampGlow);
   });
 
   const exitRing = new THREE.Mesh(
@@ -223,30 +294,42 @@ function createWorld() {
   worldGroup.add(skyGlow);
 }
 
-function makeFloorTexture() {
+function makeRoadTexture() {
   const size = 128;
   const canvasTexture = document.createElement("canvas");
   canvasTexture.width = size;
   canvasTexture.height = size;
   const ctx = canvasTexture.getContext("2d");
 
-  ctx.fillStyle = "#10202c";
+  ctx.fillStyle = "#1b2229";
   ctx.fillRect(0, 0, size, size);
-  ctx.fillStyle = "rgba(255,255,255,0.035)";
-  for (let x = 0; x < size; x += 16) {
-    ctx.fillRect(x, 0, 2, size);
+  ctx.fillStyle = "rgba(255,255,255,0.02)";
+  for (let i = 0; i < 160; i += 1) {
+    ctx.fillRect(Math.random() * size, Math.random() * size, 1.5, 1.5);
   }
-  for (let y = 0; y < size; y += 16) {
-    ctx.fillRect(0, y, size, 2);
+
+  ctx.strokeStyle = "rgba(255, 229, 112, 0.75)";
+  ctx.lineWidth = 3;
+  ctx.setLineDash([14, 10]);
+  ctx.beginPath();
+  ctx.moveTo(size / 2, 0);
+  ctx.lineTo(size / 2, size);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(0, size / 2);
+  ctx.lineTo(size, size / 2);
+  ctx.stroke();
+
+  ctx.setLineDash([]);
+  ctx.fillStyle = "rgba(255,255,255,0.22)";
+  for (let x = 6; x <= size - 18; x += 20) {
+    ctx.fillRect(x, size / 2 - 16, 10, 4);
+    ctx.fillRect(x, size / 2 + 12, 10, 4);
   }
-  ctx.fillStyle = "rgba(114, 246, 194, 0.08)";
-  for (let i = 0; i < 90; i += 1) {
-    ctx.fillRect(
-      Math.random() * size,
-      Math.random() * size,
-      2 + Math.random() * 2,
-      2 + Math.random() * 2
-    );
+  for (let y = 6; y <= size - 18; y += 20) {
+    ctx.fillRect(size / 2 - 16, y, 4, 10);
+    ctx.fillRect(size / 2 + 12, y, 4, 10);
   }
 
   const texture = new THREE.CanvasTexture(canvasTexture);
@@ -254,8 +337,8 @@ function makeFloorTexture() {
   return texture;
 }
 
-function addWall(x, y, z, width, depth, material) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, 6, depth), material);
+function addWall(x, y, z, width, depth, material, height = 6) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
   mesh.position.set(x, y, z);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
@@ -281,7 +364,7 @@ function createChaser() {
 
   chase.sprite = new THREE.Sprite(material);
   chase.sprite.scale.set(7, 9, 1);
-  chase.sprite.position.set(0, 4.5, 54);
+  chase.sprite.position.set(0, 4.5, 72);
   worldGroup.add(chase.sprite);
   chase.position.copy(chase.sprite.position);
 
@@ -332,7 +415,7 @@ function resetGame() {
   player.grounded = true;
   player.alive = true;
 
-  chase.position.set(0, 4.5, 54);
+  chase.position.set(0, 4.5, 72);
   chase.velocity.set(0, 0, 0);
   if (chase.sprite) {
     chase.sprite.position.copy(chase.position);
