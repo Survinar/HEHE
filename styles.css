@@ -94,7 +94,7 @@ body {
 .eyebrow {
   margin: 0 0 10px;
   color: var(--accent-strong);
-  text-transform: uppercase;
+  text-transform: lowercase;
   font-size: 0.78rem;
   letter-spacing: 0.24em;
 }
@@ -150,7 +150,7 @@ p {
   transition: transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
   box-shadow: 0 16px 35px rgba(255, 213, 74, 0.22);
   letter-spacing: 0.08em;
-  text-transform: uppercase;
+  text-transform: lowercase;
 }
 
 .menu-button + .menu-button {
@@ -195,7 +195,7 @@ p {
   color: var(--accent-strong);
   font-size: 0.72rem;
   letter-spacing: 0.26em;
-  text-transform: uppercase;
+  text-transform: lowercase;
 }
 
 .hud-row {

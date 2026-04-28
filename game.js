@@ -16,6 +16,7 @@ const speedValue = document.getElementById("speedValue");
 const staminaFill = document.getElementById("staminaFill");
 const threatValue = document.getElementById("threatValue");
 const distanceValue = document.getElementById("distanceValue");
+const healthValue = document.getElementById("healthValue");
 const messageEyebrow = document.getElementById("messageEyebrow");
 const messageTitle = document.getElementById("messageTitle");
 const messageBody = document.getElementById("messageBody");
@@ -83,6 +84,9 @@ const player = {
   maxAirSpeed: 18.5,
   grounded: true,
   coyoteTimer: 0,
+  maxHealth: 3,
+  health: 3,
+  hitCooldown: 0,
   stamina: 1,
   slideTimer: 0,
   slideCooldown: 0,
@@ -519,6 +523,8 @@ function resetGame() {
   player.pitch = 0;
   player.currentHeight = player.standingHeight;
   player.coyoteTimer = 0;
+  player.health = player.maxHealth;
+  player.hitCooldown = 0;
   player.stamina = 1;
   player.slideTimer = 0;
   player.slideCooldown = 0;
@@ -536,7 +542,7 @@ function resetGame() {
   }
 
   game.survivedSeconds = 0;
-  objectiveText.textContent = "Reach the exit";
+  objectiveText.textContent = "reach the exit";
   updateCameraTransform();
   updateHud(999);
 }
@@ -669,6 +675,10 @@ function acceleratePlanar(direction, wishSpeed, acceleration, delta) {
 }
 
 function updatePlayer(delta) {
+  if (player.hitCooldown > 0) {
+    player.hitCooldown = Math.max(0, player.hitCooldown - delta);
+  }
+
   if (inputState.jumpBuffer > 0) {
     inputState.jumpBuffer = Math.max(0, inputState.jumpBuffer - delta);
   }
@@ -836,7 +846,7 @@ function resolveChaserCollisions(nextPosition, velocity) {
 function updateChasers(delta) {
   let nearestDistance = Infinity;
   let nearestEntity = null;
-  let playerCaught = false;
+  let playerHit = false;
 
   for (const entity of entities) {
     const target = player.position.clone();
@@ -867,7 +877,7 @@ function updateChasers(delta) {
     }
 
     if (distance < entitySwarm.attackRange) {
-      playerCaught = true;
+      playerHit = true;
     }
   }
 
@@ -877,8 +887,8 @@ function updateChasers(delta) {
     entityVisual.nearestLight.intensity = THREE.MathUtils.clamp(lightStrength, 0, 1) * 12;
   }
 
-  if (playerCaught) {
-    finishGame(false);
+  if (playerHit) {
+    handlePlayerHit();
   }
 
   updateAudio();
@@ -916,19 +926,57 @@ function updateAudio() {
 
 function updateHud(distance) {
   const horizontalSpeed = Math.hypot(player.velocity.x, player.velocity.z);
+  healthValue.textContent = `${player.health} / ${player.maxHealth}`;
   speedValue.textContent = `${horizontalSpeed.toFixed(1)} m/s`;
   staminaFill.style.transform = `scaleX(${player.stamina.toFixed(3)})`;
   distanceValue.textContent = `${Math.max(0, distance).toFixed(1)} m`;
 
-  let threat = "Far";
+  let threat = "far";
   if (distance < entitySwarm.dangerRange) {
-    threat = "Critical";
+    threat = "critical";
   } else if (distance < entitySwarm.audioRange) {
-    threat = "Close";
+    threat = "close";
   } else if (distance < 28) {
-    threat = "Tracking";
+    threat = "tracking";
   }
   threatValue.textContent = threat;
+}
+
+function playHitSound() {
+  const hitAudio = entityAudio.cloneNode(true);
+  hitAudio.loop = false;
+  hitAudio.volume = 1;
+  hitAudio.currentTime = 0;
+  hitAudio.preload = "auto";
+  hitAudio.setAttribute("playsinline", "");
+  hitAudio.style.display = "none";
+  document.body.appendChild(hitAudio);
+
+  hitAudio.play().catch(() => {
+    hitAudio.remove();
+  });
+
+  hitAudio.addEventListener(
+    "ended",
+    () => {
+      hitAudio.remove();
+    },
+    { once: true }
+  );
+}
+
+function handlePlayerHit() {
+  if (game.state !== "playing" || player.hitCooldown > 0) {
+    return;
+  }
+
+  player.health = Math.max(0, player.health - 1);
+  player.hitCooldown = 0.9;
+  playHitSound();
+
+  if (player.health <= 0) {
+    finishGame(false);
+  }
 }
 
 function finishGame(won) {
@@ -938,11 +986,11 @@ function finishGame(won) {
 
   setGameState("finished");
   showMessage(
-    won ? "Run Complete" : "Caught",
-    won ? "You escaped." : "The entity reached you.",
+    won ? "run complete" : "caught",
+    won ? "you escaped." : "the entity reached you.",
     won
-      ? "The exit sealed before the footsteps behind you could follow."
-      : "Restart the run, use your slide to break line of sight, and keep momentum."
+      ? "the exit sealed before the footsteps behind you could follow."
+      : "restart the run, use your slide to break line of sight, and keep momentum."
   );
 }
 
