@@ -122,6 +122,8 @@ const audioSystem = {
   hitAudioPrimed: false,
 };
 
+const ambientTrackSettings = [0.05, 0.035, 0.022];
+
 const mouseSensitivity = 0.0022;
 
 function createWorld() {
@@ -581,7 +583,7 @@ function unlockAudio() {
     return;
   }
 
-  audioSystem.entityTracks = entities.map((entity, index) => {
+  audioSystem.entityTracks = ambientTrackSettings.map((maxVolume, index) => {
     const audio = entityAudio.cloneNode(true);
     audio.loop = true;
     audio.volume = 0;
@@ -606,7 +608,7 @@ function unlockAudio() {
       audio.load();
     }
 
-    return { entity, audio, phase };
+    return { audio, phase, maxVolume };
   });
   audioSystem.initialized = true;
 }
@@ -879,31 +881,32 @@ function resolveChaserCollisions(nextPosition, velocity) {
   resolveWorldCollisions(nextPosition, entitySwarm.radius, velocity);
 }
 
+const _tempVector = new THREE.Vector3();
+const _tempTarget = new THREE.Vector3();
+
 function updateChasers(delta) {
   let nearestDistance = Infinity;
   let nearestEntity = null;
   let playerHit = false;
 
   for (const entity of entities) {
-    const target = player.position.clone();
-    target.y = entity.position.y;
+    _tempTarget.copy(player.position);
+    _tempTarget.y = entity.position.y;
 
-    const toPlayer = target.sub(entity.position);
-    const distance = toPlayer.length();
+    _tempVector.subVectors(_tempTarget, entity.position);
+    const distance = _tempVector.length();
     if (distance > 0.001) {
-      toPlayer.normalize();
+      _tempVector.normalize();
     }
 
     const speedBoost = THREE.MathUtils.clamp((18 - distance) * 0.08, 0, 1.4);
     const targetSpeed = entitySwarm.baseSpeed + speedBoost + entity.speedOffset;
-    entity.velocity.lerp(
-      toPlayer.multiplyScalar(targetSpeed),
-      Math.min(1, delta * 2.7)
-    );
+    
+    _tempVector.multiplyScalar(targetSpeed);
+    entity.velocity.lerp(_tempVector, Math.min(1, delta * 2.7));
 
-    const nextPosition = entity.position.clone().addScaledVector(entity.velocity, delta);
-    resolveChaserCollisions(nextPosition, entity.velocity);
-    entity.position.copy(nextPosition);
+    entity.position.addScaledVector(entity.velocity, delta);
+    resolveChaserCollisions(entity.position, entity.velocity);
     entity.position.y = 4.5 + Math.sin(game.survivedSeconds * 5.2 + entity.bobOffset) * 0.4;
     entity.sprite.position.copy(entity.position);
 
@@ -927,36 +930,55 @@ function updateChasers(delta) {
     handlePlayerHit();
   }
 
-  updateAudio();
+  updateAudio(delta);
   return nearestDistance;
 }
 
-function updateAudio() {
+function updateAudio(delta) {
   if (!game.audioUnlocked || !audioSystem.initialized) {
     return;
   }
 
-  audioSystem.entityTracks.forEach(({ entity, audio }) => {
+  let nearestDistance = Infinity;
+  let nearbyCount = 0;
+
+  entities.forEach((entity) => {
     const entityDistance = entity.position.distanceTo(player.position);
-    const normalized = THREE.MathUtils.clamp(
-      1 - entityDistance / entitySwarm.audioRange,
+    nearestDistance = Math.min(nearestDistance, entityDistance);
+
+    if (entityDistance < entitySwarm.audioRange) {
+      nearbyCount += 1;
+    }
+  });
+
+  const nearestPresence = THREE.MathUtils.clamp(
+    1 - nearestDistance / entitySwarm.audioRange,
+    0,
+    1
+  );
+  const densityPresence = THREE.MathUtils.clamp(nearbyCount / 12, 0, 1);
+  const swarmPresence = THREE.MathUtils.clamp(
+    nearestPresence * 0.78 + densityPresence * 0.34,
+    0,
+    1
+  );
+
+  const lerpFactor = 1 - Math.exp(-12 * delta);
+
+  audioSystem.entityTracks.forEach(({ audio, maxVolume }, index) => {
+    const layerOffset = index * 0.22;
+    const layerPresence = THREE.MathUtils.clamp(
+      (swarmPresence - layerOffset) / Math.max(0.01, 1 - layerOffset),
       0,
       1
     );
-    const targetVolume = normalized * normalized * 0.045;
+    const targetVolume = layerPresence * layerPresence * maxVolume;
 
-    if (targetVolume > 0.002) {
-      if (audio.paused) {
-        audio.play().catch(() => {});
-      }
-      audio.volume += (targetVolume - audio.volume) * 0.18;
-    } else if (!audio.paused) {
-      audio.volume *= 0.82;
-      if (audio.volume < 0.003) {
-        audio.volume = 0;
-        audio.pause();
-      }
+    if (audio.paused) {
+      audio.play().catch(() => {});
     }
+
+    audio.volume += (targetVolume - audio.volume) * lerpFactor;
   });
 }
 
@@ -1105,10 +1127,22 @@ function onKeyUp(event) {
 }
 
 function onResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  camera.aspect = width / height;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(width, height);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
 }
+
+window.addEventListener("blur", () => {
+  Object.keys(keys).forEach((code) => {
+    keys[code] = false;
+  });
+  if (game.state === "playing") {
+    pauseGame();
+  }
+});
 
 startButton.addEventListener("click", startGame);
 resumeButton.addEventListener("click", resumeGame);
