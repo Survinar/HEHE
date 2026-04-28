@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Entity Run</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game"></canvas>
+
+      <div id="hud" class="hidden">
+        <div class="hud-panel">
+          <div class="hud-row">
+            <span>Objective</span>
+            <strong id="objectiveText">Reach the exit</strong>
+          </div>
+          <div class="hud-row">
+            <span>Speed</span>
+            <strong id="speedValue">0.0 m/s</strong>
+          </div>
+          <div class="hud-row">
+            <span>Stamina</span>
+            <div class="meter">
+              <div id="staminaFill" class="meter-fill"></div>
+            </div>
+          </div>
+          <div class="hud-row">
+            <span>Threat</span>
+            <strong id="threatValue">Far</strong>
+          </div>
+          <div class="hud-row">
+            <span>Distance</span>
+            <strong id="distanceValue">0 m</strong>
+          </div>
+        </div>
+        <div class="crosshair"></div>
+        <div class="hint-strip">WASD move • Shift sprint • Ctrl slide • Space jump • Esc pause</div>
+      </div>
+
+      <div id="mainMenu" class="overlay">
+        <div class="menu-card">
+          <p class="eyebrow">Three.js Survival Prototype</p>
+          <h1>Entity Run</h1>
+          <p>
+            Keep moving through the maze, reach the glowing exit, and do not let
+            the entity close the gap.
+          </p>
+          <div class="controls-grid">
+            <span>Move</span><strong>W A S D</strong>
+            <span>Sprint</span><strong>Shift</strong>
+            <span>Slide</span><strong>Ctrl</strong>
+            <span>Jump</span><strong>Space</strong>
+          </div>
+          <button id="startButton" class="menu-button">Start Run</button>
+        </div>
+      </div>
+
+      <div id="pauseMenu" class="overlay hidden">
+        <div class="menu-card compact">
+          <p class="eyebrow">Paused</p>
+          <h2>Catch your breath</h2>
+          <button id="resumeButton" class="menu-button">Resume</button>
+          <button id="restartButton" class="menu-button secondary">Restart</button>
+          <button id="menuButton" class="menu-button ghost">Main Menu</button>
+        </div>
+      </div>
+
+      <div id="messageOverlay" class="overlay hidden">
+        <div class="menu-card compact">
+          <p class="eyebrow" id="messageEyebrow">Run Complete</p>
+          <h2 id="messageTitle">You escaped.</h2>
+          <p id="messageBody">The exit sealed behind you just in time.</p>
+          <button id="messageRestartButton" class="menu-button">Play Again</button>
+          <button id="messageMenuButton" class="menu-button ghost">Main Menu</button>
+        </div>
+      </div>
+    </div>
+
+    <audio id="entityAudio" src="./entity1.mp3" preload="auto" loop></audio>
+
+    <script src="https://unpkg.com/three@0.163.0/build/three.min.js"></script>
+    <script src="./game.js"></script>
+  </body>
+</html>
