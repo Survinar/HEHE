@@ -82,7 +82,13 @@
 
     <audio id="entityAudio" src="./entity1.mp3" preload="auto" loop></audio>
 
-    <script src="https://unpkg.com/three@0.163.0/build/three.min.js"></script>
-    <script src="./game.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://threejs.org/build/three.module.js"
+        }
+      }
+    </script>
+    <script type="module" src="./game.js"></script>
   </body>
 </html>

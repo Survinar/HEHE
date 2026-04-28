@@ -1,3 +1,5 @@
+import * as THREE from "three";
+
 const canvas = document.getElementById("game");
 const hud = document.getElementById("hud");
 const mainMenu = document.getElementById("mainMenu");
