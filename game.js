@@ -19,7 +19,6 @@ const distanceValue = document.getElementById("distanceValue");
 const messageEyebrow = document.getElementById("messageEyebrow");
 const messageTitle = document.getElementById("messageTitle");
 const messageBody = document.getElementById("messageBody");
-const entityAudio = document.getElementById("entityAudio");
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x9ed0ff);
@@ -110,6 +109,14 @@ const entityVisual = {
   material: null,
   nearestLight: null,
   spawnPositions: [],
+};
+const audioSystem = {
+  context: null,
+  masterGain: null,
+  buffer: null,
+  initialized: false,
+  initializing: false,
+  entityNodes: [],
 };
 
 const mouseSensitivity = 0.0022;
@@ -214,12 +221,7 @@ function createWorld() {
     [172, 3, 0, 8, 340, 6],
   ];
   edgeDecor.forEach(([x, y, z, sx, sz, h]) => {
-    const border = new THREE.Mesh(
-      new THREE.BoxGeometry(sx, h, sz),
-      decorativeEdgeMaterial
-    );
-    border.position.set(x, y, z);
-    worldGroup.add(border);
+    addWall(x, y, z, sx, sz, decorativeEdgeMaterial, h);
   });
 
   const cityBlocks = [
@@ -564,19 +566,61 @@ function exitPointerLock() {
 
 function unlockAudio() {
   game.audioUnlocked = true;
-  entityAudio.volume = 0;
-  entityAudio
-    .play()
-    .then(() => {
-      entityAudio.pause();
-      entityAudio.currentTime = 0;
+
+  if (!audioSystem.context) {
+    audioSystem.context = new window.AudioContext();
+    audioSystem.masterGain = audioSystem.context.createGain();
+    audioSystem.masterGain.gain.value = 0.7;
+    audioSystem.masterGain.connect(audioSystem.context.destination);
+  }
+
+  if (audioSystem.context.state === "suspended") {
+    audioSystem.context.resume().catch(() => {});
+  }
+
+  if (audioSystem.initialized) {
+    return;
+  }
+
+  if (audioSystem.initializing) {
+    return;
+  }
+
+  audioSystem.initializing = true;
+
+  fetch("./entity1.mp3")
+    .then((response) => response.arrayBuffer())
+    .then((arrayBuffer) => audioSystem.context.decodeAudioData(arrayBuffer))
+    .then((buffer) => {
+      audioSystem.buffer = buffer;
+      audioSystem.entityNodes = entities.map((entity, index) => {
+        const source = audioSystem.context.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+
+        const gain = audioSystem.context.createGain();
+        gain.gain.value = 0;
+
+        source.connect(gain);
+        gain.connect(audioSystem.masterGain);
+        source.start(0, (index * 0.17) % Math.max(buffer.duration, 0.001));
+
+        return { entity, source, gain };
+      });
+      audioSystem.initialized = true;
+      audioSystem.initializing = false;
     })
-    .catch(() => {});
+    .catch(() => {
+      audioSystem.initializing = false;
+    });
 }
 
 function stopEntityAudio() {
-  entityAudio.pause();
-  entityAudio.currentTime = 0;
+  if (audioSystem.context) {
+    audioSystem.entityNodes.forEach(({ gain }) => {
+      gain.gain.setTargetAtTime(0, audioSystem.context.currentTime, 0.08);
+    });
+  }
 }
 
 function update(delta) {
@@ -851,31 +895,27 @@ function updateChasers(delta) {
     finishGame(false);
   }
 
-  updateAudio(nearestDistance);
+  updateAudio();
   return nearestDistance;
 }
 
-function updateAudio(distance) {
-  if (!game.audioUnlocked) {
+function updateAudio() {
+  if (!game.audioUnlocked || !audioSystem.initialized || !audioSystem.context) {
     return;
   }
 
-  if (distance < entitySwarm.audioRange) {
-    const targetVolume = THREE.MathUtils.clamp(
-      1 - distance / entitySwarm.audioRange,
-      0.08,
-      0.85
+  const now = audioSystem.context.currentTime;
+
+  audioSystem.entityNodes.forEach(({ entity, gain }) => {
+    const entityDistance = entity.position.distanceTo(player.position);
+    const normalized = THREE.MathUtils.clamp(
+      1 - entityDistance / entitySwarm.audioRange,
+      0,
+      1
     );
-    entityAudio.volume += (targetVolume - entityAudio.volume) * 0.15;
-    if (entityAudio.paused) {
-      entityAudio.play().catch(() => {});
-    }
-  } else if (!entityAudio.paused) {
-    entityAudio.volume *= 0.82;
-    if (entityAudio.volume < 0.03) {
-      stopEntityAudio();
-    }
-  }
+    const targetVolume = normalized * normalized * 0.045;
+    gain.gain.setTargetAtTime(targetVolume, now, 0.06);
+  });
 }
 
 function updateHud(distance) {
