@@ -21,6 +21,7 @@ const messageEyebrow = document.getElementById("messageEyebrow");
 const messageTitle = document.getElementById("messageTitle");
 const messageBody = document.getElementById("messageBody");
 const entityAudio = document.getElementById("entityAudio");
+const hitAudio = document.getElementById("hitAudio");
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x9ed0ff);
@@ -118,6 +119,7 @@ const entityVisual = {
 const audioSystem = {
   initialized: false,
   entityTracks: [],
+  hitAudioPrimed: false,
 };
 
 const mouseSensitivity = 0.0022;
@@ -569,6 +571,7 @@ function exitPointerLock() {
 
 function unlockAudio() {
   game.audioUnlocked = true;
+  primeHitAudio();
 
   if (audioSystem.initialized) {
     audioSystem.entityTracks.forEach(({ audio, phase }) => {
@@ -606,6 +609,39 @@ function unlockAudio() {
     return { entity, audio, phase };
   });
   audioSystem.initialized = true;
+}
+
+function primeHitAudio() {
+  if (audioSystem.hitAudioPrimed) {
+    return;
+  }
+
+  const activate = () => {
+    const previousMuted = hitAudio.muted;
+    const previousVolume = hitAudio.volume;
+
+    hitAudio.muted = true;
+    hitAudio.volume = 0;
+    hitAudio.currentTime = 0;
+
+    hitAudio.play().then(() => {
+      hitAudio.pause();
+      hitAudio.currentTime = 0;
+      hitAudio.muted = previousMuted;
+      hitAudio.volume = previousVolume;
+      audioSystem.hitAudioPrimed = true;
+    }).catch(() => {
+      hitAudio.muted = previousMuted;
+      hitAudio.volume = previousVolume;
+    });
+  };
+
+  if (hitAudio.readyState >= 2) {
+    activate();
+  } else {
+    hitAudio.addEventListener("canplay", activate, { once: true });
+    hitAudio.load();
+  }
 }
 
 function stopEntityAudio() {
@@ -943,26 +979,13 @@ function updateHud(distance) {
 }
 
 function playHitSound() {
-  const hitAudio = entityAudio.cloneNode(true);
-  hitAudio.loop = false;
-  hitAudio.volume = 1;
-  hitAudio.currentTime = 0;
-  hitAudio.preload = "auto";
-  hitAudio.setAttribute("playsinline", "");
-  hitAudio.style.display = "none";
-  document.body.appendChild(hitAudio);
-
-  hitAudio.play().catch(() => {
-    hitAudio.remove();
-  });
-
-  hitAudio.addEventListener(
-    "ended",
-    () => {
-      hitAudio.remove();
-    },
-    { once: true }
-  );
+  hitAudio.pause();
+  try {
+    hitAudio.currentTime = 0;
+  } catch (error) {
+    hitAudio.load();
+  }
+  hitAudio.play().catch(() => {});
 }
 
 function handlePlayerHit() {
