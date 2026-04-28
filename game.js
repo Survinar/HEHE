@@ -70,8 +70,8 @@ const player = {
   airDrag: 1.2,
   airControl: 0.45,
   walkSpeed: 9.5,
-  sprintSpeed: 16,
-  slideBoost: 21,
+  sprintSpeed: 18.5,
+  slideBoost: 24,
   maxAirSpeed: 11,
   grounded: true,
   stamina: 1,
@@ -92,8 +92,8 @@ const chase = {
   light: null,
   position: new THREE.Vector3(),
   velocity: new THREE.Vector3(),
-  baseSpeed: 8.5,
-  attackRange: 3.2,
+  baseSpeed: 7.1,
+  attackRange: 2.8,
   audioRange: 18,
   dangerRange: 10,
 };
@@ -364,7 +364,7 @@ function createChaser() {
 
   chase.sprite = new THREE.Sprite(material);
   chase.sprite.scale.set(7, 9, 1);
-  chase.sprite.position.set(0, 4.5, 72);
+  chase.sprite.position.set(0, 4.5, 80);
   worldGroup.add(chase.sprite);
   chase.position.copy(chase.sprite.position);
 
@@ -415,7 +415,7 @@ function resetGame() {
   player.grounded = true;
   player.alive = true;
 
-  chase.position.set(0, 4.5, 72);
+  chase.position.set(0, 4.5, 80);
   chase.velocity.set(0, 0, 0);
   if (chase.sprite) {
     chase.sprite.position.copy(chase.position);
@@ -548,9 +548,9 @@ function updatePlayer(delta) {
     player.slideTimer = 0.9;
     player.slideCooldown = 0.35;
     const facing = new THREE.Vector3(
-      Math.sin(player.yaw),
+      -Math.sin(player.yaw),
       0,
-      Math.cos(player.yaw)
+      -Math.cos(player.yaw)
     ).normalize();
     player.velocity.x = facing.x * player.slideBoost;
     player.velocity.z = facing.z * player.slideBoost;
@@ -572,7 +572,7 @@ function updatePlayer(delta) {
   const targetHeight = isSliding ? player.slideHeight : player.standingHeight;
   player.currentHeight += (targetHeight - player.currentHeight) * Math.min(1, delta * 12);
 
-  const yawForward = new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw));
+  const yawForward = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
   const yawRight = new THREE.Vector3(-yawForward.z, 0, yawForward.x);
   const desiredDirection = new THREE.Vector3()
     .addScaledVector(yawRight, moveInput.x)
@@ -670,7 +670,7 @@ function updateChaser(delta) {
     toPlayer.normalize();
   }
 
-  const speedBoost = THREE.MathUtils.clamp((20 - distance) * 0.18, 0, 3.4);
+  const speedBoost = THREE.MathUtils.clamp((16 - distance) * 0.12, 0, 1.9);
   const targetSpeed = chase.baseSpeed + speedBoost;
   chase.velocity.lerp(toPlayer.multiplyScalar(targetSpeed), Math.min(1, delta * 3.5));
   chase.position.addScaledVector(chase.velocity, delta);
