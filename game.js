@@ -45,6 +45,10 @@ scene.add(worldGroup);
 const timer = new THREE.Timer();
 timer.connect(document);
 const keys = {};
+const inputState = {
+  jumpQueued: false,
+  slideQueued: false,
+};
 const walls = [];
 const wallMeshes = [];
 const spawnPoint = new THREE.Vector3(0, 0, 12);
@@ -311,6 +315,12 @@ function startGame() {
 }
 
 function resetGame() {
+  Object.keys(keys).forEach((code) => {
+    keys[code] = false;
+  });
+  inputState.jumpQueued = false;
+  inputState.slideQueued = false;
+
   player.position.copy(spawnPoint);
   player.velocity.set(0, 0, 0);
   player.yaw = Math.PI;
@@ -387,6 +397,37 @@ function update(delta) {
   renderer.render(scene, camera);
 }
 
+function applyPlanarFriction(amount, delta) {
+  const speed = Math.hypot(player.velocity.x, player.velocity.z);
+  if (speed < 0.0001) {
+    player.velocity.x = 0;
+    player.velocity.z = 0;
+    return;
+  }
+
+  const drop = speed * amount * delta;
+  const nextSpeed = Math.max(0, speed - drop);
+  const scale = nextSpeed / speed;
+  player.velocity.x *= scale;
+  player.velocity.z *= scale;
+}
+
+function acceleratePlanar(direction, wishSpeed, acceleration, delta) {
+  if (direction.lengthSq() === 0) {
+    return;
+  }
+
+  const currentSpeed = player.velocity.x * direction.x + player.velocity.z * direction.z;
+  const addSpeed = wishSpeed - currentSpeed;
+  if (addSpeed <= 0) {
+    return;
+  }
+
+  const accelSpeed = Math.min(addSpeed, acceleration * wishSpeed * delta);
+  player.velocity.x += direction.x * accelSpeed;
+  player.velocity.z += direction.z * accelSpeed;
+}
+
 function updatePlayer(delta) {
   const moveInput = new THREE.Vector3();
   const forward = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
@@ -415,7 +456,7 @@ function updatePlayer(delta) {
   }
 
   if (
-    (keys.ControlLeft || keys.ControlRight) &&
+    inputState.slideQueued &&
     player.slideTimer <= 0 &&
     player.slideCooldown <= 0 &&
     player.grounded &&
@@ -431,6 +472,14 @@ function updatePlayer(delta) {
     player.velocity.x = facing.x * player.slideBoost;
     player.velocity.z = facing.z * player.slideBoost;
   }
+  inputState.slideQueued = false;
+
+  if (inputState.jumpQueued && player.grounded && game.state === "playing") {
+    player.velocity.y = player.jumpStrength;
+    player.grounded = false;
+    player.slideTimer = 0;
+  }
+  inputState.jumpQueued = false;
 
   const isSliding = player.slideTimer > 0;
   if (isSliding) {
@@ -441,7 +490,7 @@ function updatePlayer(delta) {
   player.currentHeight += (targetHeight - player.currentHeight) * Math.min(1, delta * 12);
 
   const yawForward = new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw));
-  const yawRight = new THREE.Vector3(yawForward.z, 0, -yawForward.x);
+  const yawRight = new THREE.Vector3(-yawForward.z, 0, yawForward.x);
   const desiredDirection = new THREE.Vector3()
     .addScaledVector(yawRight, moveInput.x)
     .addScaledVector(yawForward, moveInput.z);
@@ -456,28 +505,29 @@ function updatePlayer(delta) {
       ? player.sprintSpeed
       : player.walkSpeed;
 
-  const accelMultiplier = player.grounded ? 1 : player.airControl;
-  if (desiredDirection.lengthSq() > 0) {
-    player.velocity.x += desiredDirection.x * player.moveAcceleration * accelMultiplier * delta;
-    player.velocity.z += desiredDirection.z * player.moveAcceleration * accelMultiplier * delta;
+  if (player.grounded) {
+    applyPlanarFriction(isSliding ? 1.8 : player.groundFriction, delta);
+  } else {
+    applyPlanarFriction(player.airDrag, delta);
   }
 
-  const planarVelocity = new THREE.Vector2(player.velocity.x, player.velocity.z);
-  const maxSpeed = player.grounded ? targetSpeed : player.maxAirSpeed;
-  if (planarVelocity.length() > maxSpeed && !isSliding) {
-    planarVelocity.setLength(maxSpeed);
-    player.velocity.x = planarVelocity.x;
-    player.velocity.z = planarVelocity.y;
+  if (!isSliding && desiredDirection.lengthSq() > 0) {
+    const wishSpeed = player.grounded ? targetSpeed : player.maxAirSpeed;
+    const accel = player.grounded ? player.moveAcceleration : player.moveAcceleration * player.airControl;
+    acceleratePlanar(desiredDirection, wishSpeed, accel, delta);
   }
 
-  const friction = player.grounded
-    ? isSliding
-      ? 1.8
-      : player.groundFriction
-    : player.airDrag;
-  const damping = Math.max(0, 1 - friction * delta);
-  player.velocity.x *= damping;
-  player.velocity.z *= damping;
+  const planarSpeed = Math.hypot(player.velocity.x, player.velocity.z);
+  const maxPlanarSpeed = isSliding
+    ? player.slideBoost
+    : player.grounded
+      ? targetSpeed
+      : player.maxAirSpeed;
+  if (planarSpeed > maxPlanarSpeed) {
+    const scale = maxPlanarSpeed / planarSpeed;
+    player.velocity.x *= scale;
+    player.velocity.z *= scale;
+  }
 
   player.velocity.y -= player.gravity * delta;
 
@@ -624,6 +674,8 @@ function pauseGame() {
   if (game.state !== "playing") {
     return;
   }
+  inputState.jumpQueued = false;
+  inputState.slideQueued = false;
   setGameState("paused");
 }
 
@@ -673,9 +725,12 @@ function onKeyDown(event) {
     event.preventDefault();
   }
 
-  if (event.code === "Space" && player.grounded && game.state === "playing") {
-    player.velocity.y = player.jumpStrength;
-    player.grounded = false;
+  if (event.code === "Space") {
+    inputState.jumpQueued = true;
+  }
+
+  if (event.code === "ControlLeft" || event.code === "ControlRight") {
+    inputState.slideQueued = true;
   }
 
   if (event.code === "Escape") {
