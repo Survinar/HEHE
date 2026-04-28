@@ -215,10 +215,10 @@ function createWorld() {
   });
 
   const edgeDecor = [
-    [0, 3, -172, 340, 8, 6],
-    [0, 3, 172, 340, 8, 6],
-    [-172, 3, 0, 8, 340, 6],
-    [172, 3, 0, 8, 340, 6],
+    [0, 8, -160, 332, 12, 16],
+    [0, 8, 160, 332, 12, 16],
+    [-160, 8, 0, 12, 332, 16],
+    [160, 8, 0, 12, 332, 16],
   ];
   edgeDecor.forEach(([x, y, z, sx, sz, h]) => {
     addWall(x, y, z, sx, sz, decorativeEdgeMaterial, h);
