@@ -22,8 +22,8 @@ const messageBody = document.getElementById("messageBody");
 const entityAudio = document.getElementById("entityAudio");
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a121a);
-scene.fog = new THREE.FogExp2(0x071017, 0.03);
+scene.background = new THREE.Color(0x9ed0ff);
+scene.fog = new THREE.FogExp2(0xcfe6ff, 0.008);
 
 const camera = new THREE.PerspectiveCamera(
   75,
@@ -115,27 +115,27 @@ const entityVisual = {
 const mouseSensitivity = 0.0022;
 
 function createWorld() {
-  const ambient = new THREE.HemisphereLight(0x9ec7ff, 0x081018, 1.1);
+  const ambient = new THREE.HemisphereLight(0xdff1ff, 0x8fa37d, 1.8);
   scene.add(ambient);
 
-  const moonLight = new THREE.DirectionalLight(0xa4d5ff, 1.2);
-  moonLight.position.set(18, 28, 12);
-  moonLight.castShadow = true;
-  moonLight.shadow.mapSize.set(1024, 1024);
-  moonLight.shadow.camera.near = 0.1;
-  moonLight.shadow.camera.far = 120;
-  moonLight.shadow.camera.left = -55;
-  moonLight.shadow.camera.right = 55;
-  moonLight.shadow.camera.top = 55;
-  moonLight.shadow.camera.bottom = -55;
-  moonLight.shadow.bias = -0.00015;
-  scene.add(moonLight);
-  const moonTarget = new THREE.Object3D();
-  moonTarget.position.set(0, 0, 0);
-  scene.add(moonTarget);
-  moonLight.target = moonTarget;
-  worldLighting.moonLight = moonLight;
-  worldLighting.moonTarget = moonTarget;
+  const sunLight = new THREE.DirectionalLight(0xfff4cf, 1.9);
+  sunLight.position.set(24, 34, 18);
+  sunLight.castShadow = true;
+  sunLight.shadow.mapSize.set(1024, 1024);
+  sunLight.shadow.camera.near = 0.1;
+  sunLight.shadow.camera.far = 120;
+  sunLight.shadow.camera.left = -55;
+  sunLight.shadow.camera.right = 55;
+  sunLight.shadow.camera.top = 55;
+  sunLight.shadow.camera.bottom = -55;
+  sunLight.shadow.bias = -0.00015;
+  scene.add(sunLight);
+  const sunTarget = new THREE.Object3D();
+  sunTarget.position.set(0, 0, 0);
+  scene.add(sunTarget);
+  sunLight.target = sunTarget;
+  worldLighting.moonLight = sunLight;
+  worldLighting.moonTarget = sunTarget;
 
   const roadTexture = makeRoadTexture();
   roadTexture.wrapS = THREE.RepeatWrapping;
@@ -145,8 +145,8 @@ function createWorld() {
   const cityGround = new THREE.Mesh(
     new THREE.PlaneGeometry(320, 320),
     new THREE.MeshStandardMaterial({
-      color: 0x10171f,
-      roughness: 0.96,
+      color: 0x4d5963,
+      roughness: 0.94,
       metalness: 0.03,
       map: roadTexture,
     })
@@ -156,33 +156,33 @@ function createWorld() {
   worldGroup.add(cityGround);
 
   const sidewalkMaterial = new THREE.MeshStandardMaterial({
-    color: 0x4c5c68,
+    color: 0xb8c1c8,
     roughness: 0.98,
     metalness: 0.02,
   });
   const lotMaterialA = new THREE.MeshStandardMaterial({
-    color: 0x324758,
+    color: 0x7e97aa,
     roughness: 0.84,
     metalness: 0.08,
   });
   const lotMaterialB = new THREE.MeshStandardMaterial({
-    color: 0x5c3d48,
+    color: 0xb1857f,
     roughness: 0.82,
     metalness: 0.06,
   });
   const lotMaterialC = new THREE.MeshStandardMaterial({
-    color: 0x455b45,
+    color: 0x89a284,
     roughness: 0.86,
     metalness: 0.07,
   });
   const perimeterMaterial = new THREE.MeshStandardMaterial({
-    color: 0x1a2a36,
+    color: 0x8fa0ad,
     roughness: 0.92,
     metalness: 0.04,
   });
 
   const decorativeEdgeMaterial = new THREE.MeshStandardMaterial({
-    color: 0x20323f,
+    color: 0xa5b4c0,
     roughness: 0.92,
     metalness: 0.03,
   });
@@ -267,7 +267,7 @@ function createWorld() {
     const roof = new THREE.Mesh(
       new THREE.BoxGeometry(sx * 0.74, 0.8, sz * 0.74),
       new THREE.MeshStandardMaterial({
-        color: 0x91a8bb,
+        color: 0xdce6ee,
         roughness: 0.72,
         metalness: 0.14,
       })
@@ -277,7 +277,7 @@ function createWorld() {
   });
 
   const barrierMaterial = new THREE.MeshStandardMaterial({
-    color: 0xd77d4a,
+    color: 0xe08d4e,
     roughness: 0.72,
     metalness: 0.08,
   });
@@ -291,7 +291,7 @@ function createWorld() {
 
   const lightPoleGeometry = new THREE.CylinderGeometry(0.28, 0.34, 8, 10);
   const lightPoleMaterial = new THREE.MeshStandardMaterial({
-    color: 0x8799a8,
+    color: 0x97a5af,
     roughness: 0.55,
     metalness: 0.48,
   });
@@ -323,16 +323,10 @@ function createWorld() {
 
     const lampBulb = new THREE.Mesh(
       new THREE.SphereGeometry(0.45, 8, 8),
-      new THREE.MeshBasicMaterial({ color: 0xffdf9a })
+      new THREE.MeshBasicMaterial({ color: 0xf3f3f1 })
     );
     lampBulb.position.set(x, 7.5, z);
     worldGroup.add(lampBulb);
-
-    if (Math.abs(x) < 80 || Math.abs(z) < 80) {
-      const lampGlow = new THREE.PointLight(0xffdf9a, 3.2, 14, 2);
-      lampGlow.position.set(x, 7.5, z);
-      worldGroup.add(lampGlow);
-    }
   });
 
   const exitRing = new THREE.Mesh(
@@ -340,7 +334,7 @@ function createWorld() {
     new THREE.MeshStandardMaterial({
       color: 0xc9ff70,
       emissive: 0x9cd64d,
-      emissiveIntensity: 1.3,
+      emissiveIntensity: 0.9,
       roughness: 0.32,
     })
   );
@@ -348,17 +342,17 @@ function createWorld() {
   exitRing.rotation.x = Math.PI / 2;
   worldGroup.add(exitRing);
 
-  const exitLight = new THREE.PointLight(0xd9ff9d, 24, 26, 2);
+  const exitLight = new THREE.PointLight(0xd9ff9d, 12, 22, 2);
   exitLight.position.copy(exitPoint).setY(4.2);
   worldGroup.add(exitLight);
 
   const skyGlow = new THREE.Mesh(
     new THREE.SphereGeometry(260, 24, 24),
     new THREE.MeshBasicMaterial({
-      color: 0x163144,
+      color: 0xd7edff,
       side: THREE.BackSide,
       transparent: true,
-      opacity: 0.3,
+      opacity: 0.65,
     })
   );
   worldGroup.add(skyGlow);
