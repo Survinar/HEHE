@@ -54,7 +54,7 @@ const timer = new THREE.Timer();
 timer.connect(document);
 const keys = {};
 const inputState = {
-  jumpQueued: false,
+  jumpBuffer: 0,
   slideQueued: false,
 };
 const walls = [];
@@ -80,8 +80,9 @@ const player = {
   walkSpeed: 9.5,
   sprintSpeed: 18.5,
   slideBoost: 24,
-  maxAirSpeed: 11,
+  maxAirSpeed: 18.5,
   grounded: true,
+  coyoteTimer: 0,
   stamina: 1,
   slideTimer: 0,
   slideCooldown: 0,
@@ -95,16 +96,20 @@ const game = {
   audioUnlocked: false,
 };
 
-const chase = {
-  sprite: null,
-  light: null,
-  position: new THREE.Vector3(),
-  velocity: new THREE.Vector3(),
+const entitySwarm = {
+  count: 67,
   radius: 1.4,
-  baseSpeed: 7.1,
-  attackRange: 2.8,
+  baseSpeed: 6.6,
+  attackRange: 2.6,
   audioRange: 18,
   dangerRange: 10,
+  lightRange: 18,
+};
+const entities = [];
+const entityVisual = {
+  material: null,
+  nearestLight: null,
+  spawnPositions: [],
 };
 
 const mouseSensitivity = 0.0022;
@@ -417,25 +422,71 @@ function addWall(x, y, z, width, depth, material, height = 6) {
   });
 }
 
-function createChaser() {
+function getEntitySpawnPositions(count) {
+  const laneValues = [-140, -70, 0, 70, 140];
+  const streetSteps = [-140, -112, -84, -56, -28, 0, 28, 56, 84, 112, 140];
+  const candidates = [];
+  const seen = new Set();
+
+  laneValues.forEach((x) => {
+    streetSteps.forEach((z) => {
+      const key = `${x}:${z}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        candidates.push(new THREE.Vector3(x, 4.5, z));
+      }
+    });
+  });
+
+  laneValues.forEach((z) => {
+    streetSteps.forEach((x) => {
+      const key = `${x}:${z}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        candidates.push(new THREE.Vector3(x, 4.5, z));
+      }
+    });
+  });
+
+  candidates.sort((a, b) => {
+    const aDistance = a.distanceTo(spawnPoint);
+    const bDistance = b.distanceTo(spawnPoint);
+    return bDistance - aDistance;
+  });
+
+  return candidates.filter((position) => position.distanceTo(spawnPoint) > 26).slice(0, count);
+}
+
+function createChasers() {
   const texture = new THREE.TextureLoader().load("./entity1.png");
   texture.colorSpace = THREE.SRGBColorSpace;
 
-  const material = new THREE.SpriteMaterial({
+  entityVisual.material = new THREE.SpriteMaterial({
     map: texture,
     transparent: true,
     depthWrite: false,
   });
+  entityVisual.spawnPositions = getEntitySpawnPositions(entitySwarm.count);
 
-  chase.sprite = new THREE.Sprite(material);
-  chase.sprite.scale.set(7, 9, 1);
-  chase.sprite.position.set(0, 4.5, 154);
-  worldGroup.add(chase.sprite);
-  chase.position.copy(chase.sprite.position);
+  entityVisual.spawnPositions.forEach((spawnPosition, index) => {
+    const sprite = new THREE.Sprite(entityVisual.material);
+    const scale = 6 + (index % 5) * 0.35;
+    sprite.scale.set(scale, scale * 1.28, 1);
+    sprite.position.copy(spawnPosition);
+    worldGroup.add(sprite);
 
-  chase.light = new THREE.PointLight(0xff6880, 18, 20, 2);
-  chase.light.position.copy(chase.position);
-  worldGroup.add(chase.light);
+    entities.push({
+      sprite,
+      position: spawnPosition.clone(),
+      velocity: new THREE.Vector3(),
+      bobOffset: index * 0.37,
+      speedOffset: (index % 7) * 0.12,
+    });
+  });
+
+  entityVisual.nearestLight = new THREE.PointLight(0xff6880, 0, entitySwarm.lightRange, 2);
+  entityVisual.nearestLight.position.set(0, 4.5, 0);
+  worldGroup.add(entityVisual.nearestLight);
 }
 
 function setGameState(nextState) {
@@ -466,7 +517,7 @@ function resetGame() {
   Object.keys(keys).forEach((code) => {
     keys[code] = false;
   });
-  inputState.jumpQueued = false;
+  inputState.jumpBuffer = 0;
   inputState.slideQueued = false;
 
   player.position.copy(spawnPoint);
@@ -474,19 +525,21 @@ function resetGame() {
   player.yaw = Math.PI;
   player.pitch = 0;
   player.currentHeight = player.standingHeight;
+  player.coyoteTimer = 0;
   player.stamina = 1;
   player.slideTimer = 0;
   player.slideCooldown = 0;
   player.grounded = true;
   player.alive = true;
 
-  chase.position.set(0, 4.5, 154);
-  chase.velocity.set(0, 0, 0);
-  if (chase.sprite) {
-    chase.sprite.position.copy(chase.position);
-  }
-  if (chase.light) {
-    chase.light.position.copy(chase.position);
+  entities.forEach((entity, index) => {
+    const spawnPosition = entityVisual.spawnPositions[index];
+    entity.position.copy(spawnPosition);
+    entity.velocity.set(0, 0, 0);
+    entity.sprite.position.copy(entity.position);
+  });
+  if (entityVisual.nearestLight) {
+    entityVisual.nearestLight.intensity = 0;
   }
 
   game.survivedSeconds = 0;
@@ -540,9 +593,9 @@ function update(delta) {
 
   game.survivedSeconds += delta;
   updatePlayer(delta);
-  updateChaser(delta);
+  const nearestDistance = updateChasers(delta);
   updateShadowFocus();
-  updateHud(chase.position.distanceTo(player.position));
+  updateHud(nearestDistance);
   renderer.render(scene, camera);
 }
 
@@ -592,6 +645,16 @@ function acceleratePlanar(direction, wishSpeed, acceleration, delta) {
 }
 
 function updatePlayer(delta) {
+  if (inputState.jumpBuffer > 0) {
+    inputState.jumpBuffer = Math.max(0, inputState.jumpBuffer - delta);
+  }
+
+  if (player.grounded) {
+    player.coyoteTimer = 0.12;
+  } else {
+    player.coyoteTimer = Math.max(0, player.coyoteTimer - delta);
+  }
+
   const moveInput = new THREE.Vector3();
   const forward = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
   const strafe = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
@@ -601,12 +664,12 @@ function updatePlayer(delta) {
   }
 
   const wantsSprint = keys.ShiftLeft || keys.ShiftRight;
-  const sprinting =
+  const canSprint =
     wantsSprint &&
     player.stamina > 0.08 &&
-    player.grounded &&
     moveInput.lengthSq() > 0 &&
     player.slideTimer <= 0;
+  const sprinting = canSprint && player.grounded;
 
   if (sprinting) {
     player.stamina = Math.max(0, player.stamina - delta * 0.22);
@@ -637,12 +700,13 @@ function updatePlayer(delta) {
   }
   inputState.slideQueued = false;
 
-  if (inputState.jumpQueued && player.grounded && game.state === "playing") {
+  if (inputState.jumpBuffer > 0 && player.coyoteTimer > 0 && game.state === "playing") {
     player.velocity.y = player.jumpStrength;
     player.grounded = false;
+    player.coyoteTimer = 0;
     player.slideTimer = 0;
+    inputState.jumpBuffer = 0;
   }
-  inputState.jumpQueued = false;
 
   const isSliding = player.slideTimer > 0;
   if (isSliding) {
@@ -664,7 +728,7 @@ function updatePlayer(delta) {
 
   const targetSpeed = isSliding
     ? player.slideBoost
-    : sprinting
+    : canSprint
       ? player.sprintSpeed
       : player.walkSpeed;
 
@@ -675,7 +739,7 @@ function updatePlayer(delta) {
   }
 
   if (!isSliding && desiredDirection.lengthSq() > 0) {
-    const wishSpeed = player.grounded ? targetSpeed : player.maxAirSpeed;
+    const wishSpeed = player.grounded ? targetSpeed : Math.min(targetSpeed, player.maxAirSpeed);
     const accel = player.grounded ? player.moveAcceleration : player.moveAcceleration * player.airControl;
     acceleratePlanar(desiredDirection, wishSpeed, accel, delta);
   }
@@ -741,38 +805,60 @@ function resolvePlayerCollisions(nextPosition) {
   resolveWorldCollisions(nextPosition, player.radius, player.velocity);
 }
 
-function resolveChaserCollisions(nextPosition) {
-  resolveWorldCollisions(nextPosition, chase.radius, chase.velocity);
+function resolveChaserCollisions(nextPosition, velocity) {
+  resolveWorldCollisions(nextPosition, entitySwarm.radius, velocity);
 }
 
-function updateChaser(delta) {
-  const target = player.position.clone();
-  target.y = chase.position.y;
+function updateChasers(delta) {
+  let nearestDistance = Infinity;
+  let nearestEntity = null;
+  let playerCaught = false;
 
-  const toPlayer = target.sub(chase.position);
-  const distance = toPlayer.length();
-  if (distance > 0.001) {
-    toPlayer.normalize();
+  for (const entity of entities) {
+    const target = player.position.clone();
+    target.y = entity.position.y;
+
+    const toPlayer = target.sub(entity.position);
+    const distance = toPlayer.length();
+    if (distance > 0.001) {
+      toPlayer.normalize();
+    }
+
+    const speedBoost = THREE.MathUtils.clamp((18 - distance) * 0.08, 0, 1.4);
+    const targetSpeed = entitySwarm.baseSpeed + speedBoost + entity.speedOffset;
+    entity.velocity.lerp(
+      toPlayer.multiplyScalar(targetSpeed),
+      Math.min(1, delta * 2.7)
+    );
+
+    const nextPosition = entity.position.clone().addScaledVector(entity.velocity, delta);
+    resolveChaserCollisions(nextPosition, entity.velocity);
+    entity.position.copy(nextPosition);
+    entity.position.y = 4.5 + Math.sin(game.survivedSeconds * 5.2 + entity.bobOffset) * 0.4;
+    entity.sprite.position.copy(entity.position);
+
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearestEntity = entity;
+    }
+
+    if (distance < entitySwarm.attackRange) {
+      playerCaught = true;
+    }
   }
 
-  const speedBoost = THREE.MathUtils.clamp((16 - distance) * 0.12, 0, 1.9);
-  const targetSpeed = chase.baseSpeed + speedBoost;
-  chase.velocity.lerp(toPlayer.multiplyScalar(targetSpeed), Math.min(1, delta * 3.5));
+  if (entityVisual.nearestLight && nearestEntity) {
+    entityVisual.nearestLight.position.copy(nearestEntity.position);
+    const lightStrength = 1 - nearestDistance / entitySwarm.lightRange;
+    entityVisual.nearestLight.intensity = THREE.MathUtils.clamp(lightStrength, 0, 1) * 12;
+  }
 
-  const nextPosition = chase.position.clone().addScaledVector(chase.velocity, delta);
-  resolveChaserCollisions(nextPosition);
-  chase.position.copy(nextPosition);
-  chase.position.y = 4.5 + Math.sin(game.survivedSeconds * 5.2) * 0.4;
-
-  chase.sprite.position.copy(chase.position);
-  chase.light.position.copy(chase.position);
-  chase.light.intensity = 14 + Math.max(0, 18 - distance) * 0.5;
-
-  if (distance < chase.attackRange) {
+  if (playerCaught) {
     finishGame(false);
   }
 
-  updateAudio(distance);
+  updateAudio(nearestDistance);
+  return nearestDistance;
 }
 
 function updateAudio(distance) {
@@ -780,9 +866,9 @@ function updateAudio(distance) {
     return;
   }
 
-  if (distance < chase.audioRange) {
+  if (distance < entitySwarm.audioRange) {
     const targetVolume = THREE.MathUtils.clamp(
-      1 - distance / chase.audioRange,
+      1 - distance / entitySwarm.audioRange,
       0.08,
       0.85
     );
@@ -805,9 +891,9 @@ function updateHud(distance) {
   distanceValue.textContent = `${Math.max(0, distance).toFixed(1)} m`;
 
   let threat = "Far";
-  if (distance < chase.dangerRange) {
+  if (distance < entitySwarm.dangerRange) {
     threat = "Critical";
-  } else if (distance < chase.audioRange) {
+  } else if (distance < entitySwarm.audioRange) {
     threat = "Close";
   } else if (distance < 28) {
     threat = "Tracking";
@@ -845,7 +931,7 @@ function pauseGame() {
   if (game.state !== "playing") {
     return;
   }
-  inputState.jumpQueued = false;
+  inputState.jumpBuffer = 0;
   inputState.slideQueued = false;
   setGameState("paused");
 }
@@ -892,12 +978,12 @@ function onMouseMove(event) {
 function onKeyDown(event) {
   keys[event.code] = true;
 
-  if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.code)) {
+  if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "ShiftLeft", "ShiftRight"].includes(event.code)) {
     event.preventDefault();
   }
 
   if (event.code === "Space") {
-    inputState.jumpQueued = true;
+    inputState.jumpBuffer = 0.15;
   }
 
   if (event.code === "ControlLeft" || event.code === "ControlRight") {
@@ -941,6 +1027,6 @@ canvas.addEventListener("click", () => {
 });
 
 createWorld();
-createChaser();
+createChasers();
 resetGame();
 animate();
