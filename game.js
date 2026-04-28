@@ -51,8 +51,8 @@ const inputState = {
 };
 const walls = [];
 const wallMeshes = [];
-const spawnPoint = new THREE.Vector3(0, 0, 62);
-const exitPoint = new THREE.Vector3(0, 0, -66);
+const spawnPoint = new THREE.Vector3(0, 0, 132);
+const exitPoint = new THREE.Vector3(0, 0, -132);
 
 const player = {
   position: new THREE.Vector3(),
@@ -92,6 +92,7 @@ const chase = {
   light: null,
   position: new THREE.Vector3(),
   velocity: new THREE.Vector3(),
+  radius: 1.4,
   baseSpeed: 7.1,
   attackRange: 2.8,
   audioRange: 18,
@@ -109,20 +110,20 @@ function createWorld() {
   moonLight.castShadow = true;
   moonLight.shadow.mapSize.set(2048, 2048);
   moonLight.shadow.camera.near = 0.1;
-  moonLight.shadow.camera.far = 120;
-  moonLight.shadow.camera.left = -70;
-  moonLight.shadow.camera.right = 70;
-  moonLight.shadow.camera.top = 70;
-  moonLight.shadow.camera.bottom = -70;
+  moonLight.shadow.camera.far = 260;
+  moonLight.shadow.camera.left = -170;
+  moonLight.shadow.camera.right = 170;
+  moonLight.shadow.camera.top = 170;
+  moonLight.shadow.camera.bottom = -170;
   scene.add(moonLight);
 
   const roadTexture = makeRoadTexture();
   roadTexture.wrapS = THREE.RepeatWrapping;
   roadTexture.wrapT = THREE.RepeatWrapping;
-  roadTexture.repeat.set(10, 10);
+  roadTexture.repeat.set(20, 20);
 
   const cityGround = new THREE.Mesh(
-    new THREE.PlaneGeometry(160, 160),
+    new THREE.PlaneGeometry(320, 320),
     new THREE.MeshStandardMaterial({
       color: 0x10171f,
       roughness: 0.96,
@@ -160,16 +161,22 @@ function createWorld() {
     metalness: 0.04,
   });
 
+  const decorativeEdgeMaterial = new THREE.MeshStandardMaterial({
+    color: 0x20323f,
+    roughness: 0.92,
+    metalness: 0.03,
+  });
+
   const sidewalks = [
-    [0, 0.6, -78, 160, 4, 1.2],
-    [0, 0.6, 78, 160, 4, 1.2],
-    [-78, 0.6, 0, 4, 160, 1.2],
-    [78, 0.6, 0, 4, 160, 1.2],
-    [0, 0.45, 40, 160, 3, 0.9],
-    [0, 0.45, 0, 160, 3, 0.9],
-    [0, 0.45, -40, 160, 3, 0.9],
-    [-40, 0.45, 0, 3, 160, 0.9],
-    [40, 0.45, 0, 3, 160, 0.9],
+    [0, 0.6, -156, 320, 4, 1.2],
+    [0, 0.6, 156, 320, 4, 1.2],
+    [-156, 0.6, 0, 4, 320, 1.2],
+    [156, 0.6, 0, 4, 320, 1.2],
+    [0, 0.45, 70, 320, 3, 0.9],
+    [0, 0.45, 0, 320, 3, 0.9],
+    [0, 0.45, -70, 320, 3, 0.9],
+    [-70, 0.45, 0, 3, 320, 0.9],
+    [70, 0.45, 0, 3, 320, 0.9],
   ];
   sidewalks.forEach(([x, y, z, sx, sz, h]) => {
     const sidewalk = new THREE.Mesh(
@@ -182,27 +189,60 @@ function createWorld() {
     worldGroup.add(sidewalk);
   });
 
-  addWall(0, 6, -82, 164, 4, perimeterMaterial, 12);
-  addWall(0, 6, 82, 164, 4, perimeterMaterial, 12);
-  addWall(-82, 6, 0, 4, 164, perimeterMaterial, 12);
-  addWall(82, 6, 0, 4, 164, perimeterMaterial, 12);
+  const edgeDecor = [
+    [0, 3, -172, 340, 8, 6],
+    [0, 3, 172, 340, 8, 6],
+    [-172, 3, 0, 8, 340, 6],
+    [172, 3, 0, 8, 340, 6],
+  ];
+  edgeDecor.forEach(([x, y, z, sx, sz, h]) => {
+    const border = new THREE.Mesh(
+      new THREE.BoxGeometry(sx, h, sz),
+      decorativeEdgeMaterial
+    );
+    border.position.set(x, y, z);
+    border.castShadow = true;
+    border.receiveShadow = true;
+    worldGroup.add(border);
+  });
 
   const cityBlocks = [
-    [-58, 0, 58, 28, 26, 22, lotMaterialA],
-    [-18, 0, 58, 30, 26, 16, lotMaterialB],
-    [24, 0, 58, 22, 26, 20, lotMaterialC],
-    [58, 0, 58, 24, 26, 26, lotMaterialA],
-    [-58, 0, 18, 24, 22, 18, lotMaterialB],
-    [-18, 0, 18, 28, 22, 24, lotMaterialC],
-    [24, 0, 18, 22, 22, 17, lotMaterialA],
-    [58, 0, 18, 24, 22, 21, lotMaterialB],
-    [-58, 0, -20, 26, 20, 24, lotMaterialC],
-    [-18, 0, -20, 28, 20, 19, lotMaterialA],
-    [24, 0, -20, 20, 20, 27, lotMaterialB],
-    [58, 0, -20, 26, 20, 18, lotMaterialC],
-    [-58, 0, -58, 28, 26, 16, lotMaterialA],
-    [-18, 0, -58, 28, 26, 25, lotMaterialB],
-    [24, 0, -58, 20, 26, 19, lotMaterialC],
+    [-122, 0, 122, 34, 34, 22, lotMaterialA],
+    [-86, 0, 122, 30, 34, 28, lotMaterialB],
+    [-16, 0, 122, 44, 34, 20, lotMaterialC],
+    [18, 0, 122, 20, 34, 26, lotMaterialA],
+    [86, 0, 122, 30, 34, 18, lotMaterialB],
+    [122, 0, 122, 34, 34, 24, lotMaterialC],
+    [-122, 0, 86, 34, 20, 16, lotMaterialB],
+    [-86, 0, 86, 30, 20, 21, lotMaterialC],
+    [-16, 0, 86, 44, 20, 17, lotMaterialA],
+    [18, 0, 86, 20, 20, 15, lotMaterialB],
+    [86, 0, 86, 30, 20, 22, lotMaterialC],
+    [122, 0, 86, 34, 20, 18, lotMaterialA],
+    [-122, 0, 18, 34, 44, 27, lotMaterialC],
+    [-86, 0, 18, 30, 44, 19, lotMaterialA],
+    [-16, 0, 18, 44, 44, 25, lotMaterialB],
+    [18, 0, 18, 20, 44, 17, lotMaterialC],
+    [86, 0, 18, 30, 44, 30, lotMaterialA],
+    [122, 0, 18, 34, 44, 21, lotMaterialB],
+    [-122, 0, -18, 34, 20, 20, lotMaterialA],
+    [-86, 0, -18, 30, 20, 15, lotMaterialB],
+    [-16, 0, -18, 44, 20, 18, lotMaterialC],
+    [18, 0, -18, 20, 20, 24, lotMaterialA],
+    [86, 0, -18, 30, 20, 16, lotMaterialB],
+    [122, 0, -18, 34, 20, 26, lotMaterialC],
+    [-122, 0, -86, 34, 44, 18, lotMaterialB],
+    [-86, 0, -86, 30, 44, 24, lotMaterialC],
+    [-16, 0, -86, 44, 44, 28, lotMaterialA],
+    [18, 0, -86, 20, 44, 19, lotMaterialB],
+    [86, 0, -86, 30, 44, 23, lotMaterialC],
+    [122, 0, -86, 34, 44, 17, lotMaterialA],
+    [-122, 0, -122, 34, 34, 25, lotMaterialC],
+    [-86, 0, -122, 30, 34, 18, lotMaterialA],
+    [-16, 0, -122, 44, 34, 21, lotMaterialB],
+    [18, 0, -122, 20, 34, 16, lotMaterialC],
+    [86, 0, -122, 30, 34, 27, lotMaterialA],
+    [122, 0, -122, 34, 34, 22, lotMaterialB],
   ];
 
   cityBlocks.forEach(([x, y, z, sx, sz, h, material]) => {
@@ -228,9 +268,10 @@ function createWorld() {
     metalness: 0.08,
   });
   const barriers = [
-    [0, 1.2, 28, 8, 2.5, 2.4],
-    [42, 1.2, -1, 2.5, 8, 2.4],
-    [-42, 1.2, -38, 2.5, 8, 2.4],
+    [0, 1.2, 48, 12, 2.5, 2.4],
+    [70, 1.2, -12, 2.5, 12, 2.4],
+    [-70, 1.2, -60, 2.5, 12, 2.4],
+    [0, 1.2, -108, 12, 2.5, 2.4],
   ];
   barriers.forEach(([x, y, z, sx, sz, h]) => addWall(x, y, z, sx, sz, barrierMaterial, h));
 
@@ -241,16 +282,24 @@ function createWorld() {
     metalness: 0.48,
   });
   const lampPositions = [
-    [-40, 0, 68],
-    [40, 0, 68],
-    [-68, 0, 40],
-    [68, 0, 40],
-    [-40, 0, 0],
-    [40, 0, 0],
-    [-68, 0, -40],
-    [68, 0, -40],
-    [-40, 0, -68],
-    [40, 0, -68],
+    [-70, 0, 140],
+    [0, 0, 140],
+    [70, 0, 140],
+    [-140, 0, 70],
+    [140, 0, 70],
+    [-70, 0, 70],
+    [70, 0, 70],
+    [-140, 0, 0],
+    [140, 0, 0],
+    [-70, 0, 0],
+    [70, 0, 0],
+    [-140, 0, -70],
+    [140, 0, -70],
+    [-70, 0, -70],
+    [70, 0, -70],
+    [-70, 0, -140],
+    [0, 0, -140],
+    [70, 0, -140],
   ];
 
   lampPositions.forEach(([x, y, z]) => {
@@ -283,7 +332,7 @@ function createWorld() {
   worldGroup.add(exitLight);
 
   const skyGlow = new THREE.Mesh(
-    new THREE.SphereGeometry(140, 24, 24),
+    new THREE.SphereGeometry(260, 24, 24),
     new THREE.MeshBasicMaterial({
       color: 0x163144,
       side: THREE.BackSide,
@@ -364,7 +413,7 @@ function createChaser() {
 
   chase.sprite = new THREE.Sprite(material);
   chase.sprite.scale.set(7, 9, 1);
-  chase.sprite.position.set(0, 4.5, 80);
+  chase.sprite.position.set(0, 4.5, 154);
   worldGroup.add(chase.sprite);
   chase.position.copy(chase.sprite.position);
 
@@ -415,7 +464,7 @@ function resetGame() {
   player.grounded = true;
   player.alive = true;
 
-  chase.position.set(0, 4.5, 80);
+  chase.position.set(0, 4.5, 154);
   chase.velocity.set(0, 0, 0);
   if (chase.sprite) {
     chase.sprite.position.copy(chase.position);
@@ -633,10 +682,7 @@ function updatePlayer(delta) {
   }
 }
 
-function resolvePlayerCollisions(nextPosition) {
-  nextPosition.x = THREE.MathUtils.clamp(nextPosition.x, -73, 73);
-  nextPosition.z = THREE.MathUtils.clamp(nextPosition.z, -73, 73);
-
+function resolveWorldCollisions(nextPosition, radius, velocity) {
   for (const wall of walls) {
     const nearestX = THREE.MathUtils.clamp(nextPosition.x, wall.minX, wall.maxX);
     const nearestZ = THREE.MathUtils.clamp(nextPosition.z, wall.minZ, wall.maxZ);
@@ -644,20 +690,28 @@ function resolvePlayerCollisions(nextPosition) {
     const dz = nextPosition.z - nearestZ;
     const distanceSq = dx * dx + dz * dz;
 
-    if (distanceSq < player.radius * player.radius) {
+    if (distanceSq < radius * radius) {
       const distance = Math.sqrt(distanceSq) || 0.0001;
-      const push = player.radius - distance;
+      const push = radius - distance;
       if (Math.abs(dx) > Math.abs(dz)) {
         const sign = Math.sign(dx) || 1;
         nextPosition.x += sign * push;
-        player.velocity.x = 0;
+        velocity.x = 0;
       } else {
         const sign = Math.sign(dz) || 1;
         nextPosition.z += sign * push;
-        player.velocity.z = 0;
+        velocity.z = 0;
       }
     }
   }
+}
+
+function resolvePlayerCollisions(nextPosition) {
+  resolveWorldCollisions(nextPosition, player.radius, player.velocity);
+}
+
+function resolveChaserCollisions(nextPosition) {
+  resolveWorldCollisions(nextPosition, chase.radius, chase.velocity);
 }
 
 function updateChaser(delta) {
@@ -673,7 +727,10 @@ function updateChaser(delta) {
   const speedBoost = THREE.MathUtils.clamp((16 - distance) * 0.12, 0, 1.9);
   const targetSpeed = chase.baseSpeed + speedBoost;
   chase.velocity.lerp(toPlayer.multiplyScalar(targetSpeed), Math.min(1, delta * 3.5));
-  chase.position.addScaledVector(chase.velocity, delta);
+
+  const nextPosition = chase.position.clone().addScaledVector(chase.velocity, delta);
+  resolveChaserCollisions(nextPosition);
+  chase.position.copy(nextPosition);
   chase.position.y = 4.5 + Math.sin(game.survivedSeconds * 5.2) * 0.4;
 
   chase.sprite.position.copy(chase.position);
