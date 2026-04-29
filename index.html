@@ -85,8 +85,8 @@
       </div>
     </div>
 
-    <audio id="entityAudio" src="./entity1.mp3" preload="auto" loop playsinline></audio>
-    <audio id="hitAudio" src="./entity1.mp3" preload="auto" playsinline></audio>
+    <audio id="entityAudio" src="./entity1.mp3" preload="none" loop playsinline></audio>
+    <audio id="hitAudio" src="./entity1.mp3" preload="none" playsinline></audio>
 
     <script type="importmap">
       {
@@ -95,6 +95,6 @@
         }
       }
     </script>
-    <script type="module" src="./game.js"></script>
+    <script type="module" src="./game.js" defer></script>
   </body>
 </html>

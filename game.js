@@ -126,6 +126,25 @@ const ambientTrackSettings = [0.05, 0.035, 0.022];
 
 const mouseSensitivity = 0.0022;
 
+// --- OPTIMIZATION START: Constants and Asset Management ---
+const textureLoader = new THREE.TextureLoader();
+const roadTexture = makeRoadTexture();
+roadTexture.wrapS = roadTexture.wrapT = THREE.RepeatWrapping;
+roadTexture.repeat.set(20, 20);
+
+// Pool for common materials to avoid duplicates
+const materials = {
+  sidewalk: new THREE.MeshStandardMaterial({ color: 0xb8c1c8, roughness: 0.98, metalness: 0.02 }),
+  lotA: new THREE.MeshStandardMaterial({ color: 0x7e97aa, roughness: 0.84, metalness: 0.08 }),
+  lotB: new THREE.MeshStandardMaterial({ color: 0xb1857f, roughness: 0.82, metalness: 0.06 }),
+  lotC: new THREE.MeshStandardMaterial({ color: 0x89a284, roughness: 0.86, metalness: 0.07 }),
+  perimeter: new THREE.MeshStandardMaterial({ color: 0x8fa0ad, roughness: 0.92, metalness: 0.04 }),
+  decorative: new THREE.MeshStandardMaterial({ color: 0xa5b4c0, roughness: 0.92, metalness: 0.03 }),
+  roof: new THREE.MeshStandardMaterial({ color: 0xdce6ee, roughness: 0.72, metalness: 0.14 }),
+  barrier: new THREE.MeshStandardMaterial({ color: 0xe08d4e, roughness: 0.72, metalness: 0.08 }),
+  lightPole: new THREE.MeshStandardMaterial({ color: 0x97a5af, roughness: 0.55, metalness: 0.48 }),
+};
+
 function createWorld() {
   const ambient = new THREE.HemisphereLight(0xdff1ff, 0x8fa37d, 1.8);
   scene.add(ambient);
@@ -149,11 +168,6 @@ function createWorld() {
   worldLighting.moonLight = sunLight;
   worldLighting.moonTarget = sunTarget;
 
-  const roadTexture = makeRoadTexture();
-  roadTexture.wrapS = THREE.RepeatWrapping;
-  roadTexture.wrapT = THREE.RepeatWrapping;
-  roadTexture.repeat.set(20, 20);
-
   const cityGround = new THREE.Mesh(
     new THREE.PlaneGeometry(320, 320),
     new THREE.MeshStandardMaterial({
@@ -167,184 +181,79 @@ function createWorld() {
   cityGround.receiveShadow = true;
   worldGroup.add(cityGround);
 
-  const sidewalkMaterial = new THREE.MeshStandardMaterial({
-    color: 0xb8c1c8,
-    roughness: 0.98,
-    metalness: 0.02,
-  });
-  const lotMaterialA = new THREE.MeshStandardMaterial({
-    color: 0x7e97aa,
-    roughness: 0.84,
-    metalness: 0.08,
-  });
-  const lotMaterialB = new THREE.MeshStandardMaterial({
-    color: 0xb1857f,
-    roughness: 0.82,
-    metalness: 0.06,
-  });
-  const lotMaterialC = new THREE.MeshStandardMaterial({
-    color: 0x89a284,
-    roughness: 0.86,
-    metalness: 0.07,
-  });
-  const perimeterMaterial = new THREE.MeshStandardMaterial({
-    color: 0x8fa0ad,
-    roughness: 0.92,
-    metalness: 0.04,
-  });
-
-  const decorativeEdgeMaterial = new THREE.MeshStandardMaterial({
-    color: 0xa5b4c0,
-    roughness: 0.92,
-    metalness: 0.03,
-  });
-
+  // --- Optimization: Grouped Sidewalks ---
   const sidewalks = [
-    [0, 0.6, -156, 320, 4, 1.2],
-    [0, 0.6, 156, 320, 4, 1.2],
-    [-156, 0.6, 0, 4, 320, 1.2],
-    [156, 0.6, 0, 4, 320, 1.2],
-    [0, 0.45, 70, 320, 3, 0.9],
-    [0, 0.45, 0, 320, 3, 0.9],
-    [0, 0.45, -70, 320, 3, 0.9],
-    [-70, 0.45, 0, 3, 320, 0.9],
+    [0, 0.6, -156, 320, 4, 1.2], [0, 0.6, 156, 320, 4, 1.2],
+    [-156, 0.6, 0, 4, 320, 1.2], [156, 0.6, 0, 4, 320, 1.2],
+    [0, 0.45, 70, 320, 3, 0.9], [0, 0.45, 0, 320, 3, 0.9],
+    [0, 0.45, -70, 320, 3, 0.9], [-70, 0.45, 0, 3, 320, 0.9],
     [70, 0.45, 0, 3, 320, 0.9],
   ];
+  
   sidewalks.forEach(([x, y, z, sx, sz, h]) => {
-    const sidewalk = new THREE.Mesh(
-      new THREE.BoxGeometry(sx, h, sz),
-      sidewalkMaterial
-    );
+    const sidewalk = new THREE.Mesh(new THREE.BoxGeometry(sx, h, sz), materials.sidewalk);
     sidewalk.position.set(x, y, z);
     worldGroup.add(sidewalk);
   });
 
-  const edgeDecor = [
-    [0, 8, -160, 332, 12, 16],
-    [0, 8, 160, 332, 12, 16],
-    [-160, 8, 0, 12, 332, 16],
-    [160, 8, 0, 12, 332, 16],
-  ];
-  edgeDecor.forEach(([x, y, z, sx, sz, h]) => {
-    addWall(x, y, z, sx, sz, decorativeEdgeMaterial, h);
-  });
-
   const cityBlocks = [
-    [-122, 0, 122, 34, 34, 22, lotMaterialA],
-    [-86, 0, 122, 30, 34, 28, lotMaterialB],
-    [-16, 0, 122, 44, 34, 20, lotMaterialC],
-    [18, 0, 122, 20, 34, 26, lotMaterialA],
-    [86, 0, 122, 30, 34, 18, lotMaterialB],
-    [122, 0, 122, 34, 34, 24, lotMaterialC],
-    [-122, 0, 86, 34, 20, 16, lotMaterialB],
-    [-86, 0, 86, 30, 20, 21, lotMaterialC],
-    [-16, 0, 86, 44, 20, 17, lotMaterialA],
-    [18, 0, 86, 20, 20, 15, lotMaterialB],
-    [86, 0, 86, 30, 20, 22, lotMaterialC],
-    [122, 0, 86, 34, 20, 18, lotMaterialA],
-    [-122, 0, 18, 34, 44, 27, lotMaterialC],
-    [-86, 0, 18, 30, 44, 19, lotMaterialA],
-    [-16, 0, 18, 44, 44, 25, lotMaterialB],
-    [18, 0, 18, 20, 44, 17, lotMaterialC],
-    [86, 0, 18, 30, 44, 30, lotMaterialA],
-    [122, 0, 18, 34, 44, 21, lotMaterialB],
-    [-122, 0, -18, 34, 20, 20, lotMaterialA],
-    [-86, 0, -18, 30, 20, 15, lotMaterialB],
-    [-16, 0, -18, 44, 20, 18, lotMaterialC],
-    [18, 0, -18, 20, 20, 24, lotMaterialA],
-    [86, 0, -18, 30, 20, 16, lotMaterialB],
-    [122, 0, -18, 34, 20, 26, lotMaterialC],
-    [-122, 0, -86, 34, 44, 18, lotMaterialB],
-    [-86, 0, -86, 30, 44, 24, lotMaterialC],
-    [-16, 0, -86, 44, 44, 28, lotMaterialA],
-    [18, 0, -86, 20, 44, 19, lotMaterialB],
-    [86, 0, -86, 30, 44, 23, lotMaterialC],
-    [122, 0, -86, 34, 44, 17, lotMaterialA],
-    [-122, 0, -122, 34, 34, 25, lotMaterialC],
-    [-86, 0, -122, 30, 34, 18, lotMaterialA],
-    [-16, 0, -122, 44, 34, 21, lotMaterialB],
-    [18, 0, -122, 20, 34, 16, lotMaterialC],
-    [86, 0, -122, 30, 34, 27, lotMaterialA],
-    [122, 0, -122, 34, 34, 22, lotMaterialB],
+    [-122, 0, 122, 34, 34, 22, materials.lotA], [-86, 0, 122, 30, 34, 28, materials.lotB],
+    [-16, 0, 122, 44, 34, 20, materials.lotC], [18, 0, 122, 20, 34, 26, materials.lotA],
+    [86, 0, 122, 30, 34, 18, materials.lotB], [122, 0, 122, 34, 34, 24, materials.lotC],
+    [-122, 0, 86, 34, 20, 16, materials.lotB], [-86, 0, 86, 30, 20, 21, materials.lotC],
+    [-16, 0, 86, 44, 20, 17, materials.lotA], [18, 0, 86, 20, 20, 15, materials.lotB],
+    [86, 0, 86, 30, 20, 22, materials.lotC], [122, 0, 86, 34, 20, 18, materials.lotA],
+    [-122, 0, 18, 34, 44, 27, materials.lotC], [-86, 0, 18, 30, 44, 19, materials.lotA],
+    [-16, 0, 18, 44, 44, 25, materials.lotB], [18, 0, 18, 20, 44, 17, materials.lotC],
+    [86, 0, 18, 30, 44, 30, materials.lotA], [122, 0, 18, 34, 44, 21, materials.lotB],
+    [-122, 0, -18, 34, 20, 20, materials.lotA], [-86, 0, -18, 30, 20, 15, materials.lotB],
+    [-16, 0, -18, 44, 20, 18, materials.lotC], [18, 0, -18, 20, 20, 24, materials.lotA],
+    [86, 0, -18, 30, 20, 16, materials.lotB], [122, 0, -18, 34, 20, 26, materials.lotC],
+    [-122, 0, -86, 34, 44, 18, materials.lotB], [-86, 0, -86, 30, 44, 24, materials.lotC],
+    [-16, 0, -86, 44, 44, 28, materials.lotA], [18, 0, -86, 20, 44, 19, materials.lotB],
+    [86, 0, -86, 30, 44, 23, materials.lotC], [122, 0, -86, 34, 44, 17, materials.lotA],
+    [-122, 0, -122, 34, 34, 25, materials.lotC], [-86, 0, -122, 30, 34, 18, materials.lotA],
+    [-16, 0, -122, 44, 34, 21, materials.lotB], [18, 0, -122, 20, 34, 16, materials.lotC],
+    [86, 0, -122, 30, 34, 27, materials.lotA], [122, 0, -122, 34, 34, 22, materials.lotB],
   ];
 
   cityBlocks.forEach(([x, y, z, sx, sz, h, material]) => {
     addWall(x, y + h / 2, z, sx, sz, material, h);
-
-    const roof = new THREE.Mesh(
-      new THREE.BoxGeometry(sx * 0.74, 0.8, sz * 0.74),
-      new THREE.MeshStandardMaterial({
-        color: 0xdce6ee,
-        roughness: 0.72,
-        metalness: 0.14,
-      })
-    );
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(sx * 0.74, 0.8, sz * 0.74), materials.roof);
     roof.position.set(x, h + 0.4, z);
     worldGroup.add(roof);
   });
 
-  const barrierMaterial = new THREE.MeshStandardMaterial({
-    color: 0xe08d4e,
-    roughness: 0.72,
-    metalness: 0.08,
-  });
-  const barriers = [
-    [0, 1.2, 48, 12, 2.5, 2.4],
-    [70, 1.2, -12, 2.5, 12, 2.4],
-    [-70, 1.2, -60, 2.5, 12, 2.4],
-    [0, 1.2, -108, 12, 2.5, 2.4],
-  ];
-  barriers.forEach(([x, y, z, sx, sz, h]) => addWall(x, y, z, sx, sz, barrierMaterial, h));
+  const barriers = [[0, 1.2, 48, 12, 2.5, 2.4], [70, 1.2, -12, 2.5, 12, 2.4], [-70, 1.2, -60, 2.5, 12, 2.4], [0, 1.2, -108, 12, 2.5, 2.4]];
+  barriers.forEach(([x, y, z, sx, sz, h]) => addWall(x, y, z, sx, sz, materials.barrier, h));
 
-  const lightPoleGeometry = new THREE.CylinderGeometry(0.28, 0.34, 8, 10);
-  const lightPoleMaterial = new THREE.MeshStandardMaterial({
-    color: 0x97a5af,
-    roughness: 0.55,
-    metalness: 0.48,
-  });
+  // --- Optimization: InstancedMesh for Lamp Poles ---
   const lampPositions = [
-    [-70, 0, 140],
-    [0, 0, 140],
-    [70, 0, 140],
-    [-140, 0, 70],
-    [140, 0, 70],
-    [-70, 0, 70],
-    [70, 0, 70],
-    [-140, 0, 0],
-    [140, 0, 0],
-    [-70, 0, 0],
-    [70, 0, 0],
-    [-140, 0, -70],
-    [140, 0, -70],
-    [-70, 0, -70],
-    [70, 0, -70],
-    [-70, 0, -140],
-    [0, 0, -140],
-    [70, 0, -140],
+    [-70, 0, 140], [0, 0, 140], [70, 0, 140], [-140, 0, 70], [140, 0, 70],
+    [-70, 0, 70], [70, 0, 70], [-140, 0, 0], [140, 0, 0], [-70, 0, 0],
+    [70, 0, 0], [-140, 0, -70], [140, 0, -70], [-70, 0, -70], [70, 0, -70],
+    [-70, 0, -140], [0, 0, -140], [70, 0, -140]
   ];
+
+  const poleGeo = new THREE.CylinderGeometry(0.28, 0.34, 8, 8); // Reduced segments
+  const instancedPoles = new THREE.InstancedMesh(poleGeo, materials.lightPole, lampPositions.length);
+  const dummy = new THREE.Object3D();
+  lampPositions.forEach(([x, y, z], i) => {
+    dummy.position.set(x, y + 4, z);
+    dummy.updateMatrix();
+    instancedPoles.setMatrixAt(i, dummy.matrix);
+  });
+  worldGroup.add(instancedPoles);
 
   lampPositions.forEach(([x, y, z]) => {
-    const pole = new THREE.Mesh(lightPoleGeometry, lightPoleMaterial);
-    pole.position.set(x, y + 4, z);
-    worldGroup.add(pole);
-
-    const lampBulb = new THREE.Mesh(
-      new THREE.SphereGeometry(0.45, 8, 8),
-      new THREE.MeshBasicMaterial({ color: 0xf3f3f1 })
-    );
+    const lampBulb = new THREE.Mesh(new THREE.SphereGeometry(0.45, 6, 6), new THREE.MeshBasicMaterial({ color: 0xf3f3f1 }));
     lampBulb.position.set(x, 7.5, z);
     worldGroup.add(lampBulb);
   });
 
-  const exitRing = new THREE.Mesh(
-    new THREE.TorusGeometry(4.5, 0.35, 16, 64),
-    new THREE.MeshStandardMaterial({
-      color: 0xc9ff70,
-      emissive: 0x9cd64d,
-      emissiveIntensity: 0.9,
-      roughness: 0.32,
-    })
-  );
+  const exitRing = new THREE.Mesh(new THREE.TorusGeometry(4.5, 0.35, 12, 32), new THREE.MeshStandardMaterial({
+    color: 0xc9ff70, emissive: 0x9cd64d, emissiveIntensity: 0.9, roughness: 0.32,
+  }));
   exitRing.position.copy(exitPoint).setY(4.2);
   exitRing.rotation.x = Math.PI / 2;
   worldGroup.add(exitRing);
@@ -352,9 +261,26 @@ function createWorld() {
   const exitLight = new THREE.PointLight(0xd9ff9d, 12, 22, 2);
   exitLight.position.copy(exitPoint).setY(4.2);
   worldGroup.add(exitLight);
+  // --- Optimization: InstancedMesh for Edge Decorations ---
+  const edgeDecor = [
+    [0, 8, -160, 332, 12, 16], [0, 8, 160, 332, 12, 16],
+    [-160, 8, 0, 12, 332, 16], [160, 8, 0, 12, 332, 16],
+  ];
+  
+  const dummy = new THREE.Object3D();
+  const edgeGeo = new THREE.BoxGeometry(1, 1, 1);
+  const instancedEdges = new THREE.InstancedMesh(edgeGeo, materials.decorative, edgeDecor.length);
+  edgeDecor.forEach(([x, y, z, sx, sz, h], i) => {
+    dummy.position.set(x, y, z);
+    dummy.scale.set(sx, h, sz);
+    dummy.updateMatrix();
+    instancedEdges.setMatrixAt(i, dummy.matrix);
+    addWall(x, y, z, sx, sz, null, h);
+  });
+  worldGroup.add(instancedEdges);
 
   const skyGlow = new THREE.Mesh(
-    new THREE.SphereGeometry(260, 24, 24),
+    new THREE.SphereGeometry(260, 16, 16),
     new THREE.MeshBasicMaterial({
       color: 0xd7edff,
       side: THREE.BackSide,
@@ -409,12 +335,15 @@ function makeRoadTexture() {
 }
 
 function addWall(x, y, z, width, depth, material, height = 6) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
-  mesh.position.set(x, y, z);
-  mesh.castShadow = height > 3;
-  mesh.receiveShadow = false;
-  worldGroup.add(mesh);
-  wallMeshes.push(mesh);
+  if (material) {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = height > 3;
+    mesh.receiveShadow = false;
+    worldGroup.add(mesh);
+    wallMeshes.push(mesh);
+  }
+  
   walls.push({
     minX: x - width / 2,
     maxX: x + width / 2,
