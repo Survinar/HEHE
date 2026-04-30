@@ -237,11 +237,11 @@ function createWorld() {
 
   const poleGeo = new THREE.CylinderGeometry(0.28, 0.34, 8, 8); // Reduced segments
   const instancedPoles = new THREE.InstancedMesh(poleGeo, materials.lightPole, lampPositions.length);
-  const dummy = new THREE.Object3D();
+  const _worldInstancingDummy = new THREE.Object3D();
   lampPositions.forEach(([x, y, z], i) => {
-    dummy.position.set(x, y + 4, z);
-    dummy.updateMatrix();
-    instancedPoles.setMatrixAt(i, dummy.matrix);
+    _worldInstancingDummy.position.set(x, y + 4, z);
+    _worldInstancingDummy.updateMatrix();
+    instancedPoles.setMatrixAt(i, _worldInstancingDummy.matrix);
   });
   worldGroup.add(instancedPoles);
 
@@ -267,17 +267,17 @@ function createWorld() {
     [-160, 8, 0, 12, 332, 16], [160, 8, 0, 12, 332, 16],
   ];
   
-  dummy.position.set(0, 0, 0);
-  dummy.scale.set(1, 1, 1);
-  dummy.rotation.set(0, 0, 0);
-  dummy.updateMatrix();
+  _worldInstancingDummy.position.set(0, 0, 0);
+  _worldInstancingDummy.scale.set(1, 1, 1);
+  _worldInstancingDummy.rotation.set(0, 0, 0);
+  _worldInstancingDummy.updateMatrix();
   const edgeGeo = new THREE.BoxGeometry(1, 1, 1);
   const instancedEdges = new THREE.InstancedMesh(edgeGeo, materials.decorative, edgeDecor.length);
   edgeDecor.forEach(([x, y, z, sx, sz, h], i) => {
-    dummy.position.set(x, y, z);
-    dummy.scale.set(sx, h, sz);
-    dummy.updateMatrix();
-    instancedEdges.setMatrixAt(i, dummy.matrix);
+    _worldInstancingDummy.position.set(x, y, z);
+    _worldInstancingDummy.scale.set(sx, h, sz);
+    _worldInstancingDummy.updateMatrix();
+    instancedEdges.setMatrixAt(i, _worldInstancingDummy.matrix);
     addWall(x, y, z, sx, sz, null, h);
   });
   worldGroup.add(instancedEdges);
