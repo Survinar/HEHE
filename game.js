@@ -267,7 +267,10 @@ function createWorld() {
     [-160, 8, 0, 12, 332, 16], [160, 8, 0, 12, 332, 16],
   ];
   
-  const dummy = new THREE.Object3D();
+  dummy.position.set(0, 0, 0);
+  dummy.scale.set(1, 1, 1);
+  dummy.rotation.set(0, 0, 0);
+  dummy.updateMatrix();
   const edgeGeo = new THREE.BoxGeometry(1, 1, 1);
   const instancedEdges = new THREE.InstancedMesh(edgeGeo, materials.decorative, edgeDecor.length);
   edgeDecor.forEach(([x, y, z, sx, sz, h], i) => {
